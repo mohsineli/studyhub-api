@@ -39,9 +39,6 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   otp_expires_at: Date;
 
-  @Column({ type: 'text', nullable: true })
-  refresh_token: string;
-
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
   created_at: Date;
 }

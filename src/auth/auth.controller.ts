@@ -21,55 +21,57 @@ import { JwtRefreshAuthGuard } from './jwt-refresh-auth.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // POST /auth/register
   @Post('register')
   async register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
   }
 
-  // POST /auth/login
-  // Returns: { access_token, user } + sets refresh_token in HttpOnly cookie
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Express.Response) {
-    return this.authService.login(loginDto, res);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Req() req: Express.Request,
+    @Res({ passthrough: true }) res: Express.Response,
+  ) {
+    return this.authService.login(loginDto, req, res);
   }
 
-  // POST /auth/refresh
-  // Uses refresh token from cookie to issue a new access_token + new refresh_token (rotation)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtRefreshAuthGuard)
   async refresh(@Req() req: Express.Request, @Res({ passthrough: true }) res: Express.Response) {
     const user = req.user as any;
-    return this.authService.refreshTokens(user.id, user.refreshToken, res);
+    return this.authService.refreshTokens(user.id, user.refreshToken, req, res);
   }
 
-  // POST /auth/logout
-  // Clears cookie and removes refresh token from DB
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtRefreshAuthGuard) // Use Refresh Guard to get the token to clear the specific session
   async logout(@Req() req: Express.Request, @Res({ passthrough: true }) res: Express.Response) {
     const user = req.user as any;
-    return this.authService.logout(user.id, res);
+    return this.authService.logout(user.id, user.refreshToken, res);
   }
 
-  // GET /auth/me — example of a protected route
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async logoutAll(@Req() req: Express.Request, @Res({ passthrough: true }) res: Express.Response) {
+    const user = req.user as any;
+    return this.authService.logoutAll(user.id, res);
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   getProfile(@Req() req: Express.Request) {
     return req.user;
   }
 
-  // POST /auth/forgot-password
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto);
   }
 
-  // POST /auth/reset-password
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {

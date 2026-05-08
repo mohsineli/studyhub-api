@@ -1,0 +1,30 @@
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+
+@Entity('sessions')
+export class Session {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'text' })
+  refresh_token: string; // Hashed refresh token
+
+  @Column({ type: 'text', nullable: true })
+  user_agent: string;
+
+  @Column({ type: 'text', nullable: true })
+  ip_address: string;
+
+  @Column({ type: 'timestamp' })
+  expires_at: Date;
+
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
+  created_at: Date;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Column()
+  userId: number;
+}

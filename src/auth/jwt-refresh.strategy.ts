@@ -32,7 +32,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     }
 
     const user = await this.usersService.findOne(payload.sub);
-    if (!user || !user.refresh_token) {
+    if (!user) {
       throw new UnauthorizedException('Access Denied');
     }
 

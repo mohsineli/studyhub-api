@@ -6,5 +6,4 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   otp_expires_at?: Date;
   verified?: boolean;
   password?: string;
-  refresh_token?: string;
 }
