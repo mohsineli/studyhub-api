@@ -12,6 +12,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { Session } from './entities/session.entity';
 import { PendingUser } from './entities/pending-user.entity';
 import { MailService } from '../mail/mail.service';
+import { UserRole } from '../users/entities/user.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -69,7 +70,7 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
-    const { password, ...userData } = createUserDto;
+    const { password, role, ...userData } = createUserDto; // Extract role to ignore it
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 2. Generate OTP
@@ -80,15 +81,18 @@ export class AuthService {
     // 3. Save to PendingUser (Upsert)
     let pendingUser = await this.pendingUserRepository.findOne({ where: { email: createUserDto.email } });
     
+    const userToSave = {
+      ...userData,
+      password: hashedPassword,
+      role: UserRole.STUDENT, // FORCE ROLE TO STUDENT FOR SECURITY (Ignores any role sent in request)
+      otp,
+      otp_expires_at: otpExpiresAt,
+    };
+
     if (pendingUser) {
-      Object.assign(pendingUser, { ...userData, password: hashedPassword, otp, otp_expires_at: otpExpiresAt });
+      Object.assign(pendingUser, userToSave);
     } else {
-      pendingUser = this.pendingUserRepository.create({
-        ...userData,
-        password: hashedPassword,
-        otp,
-        otp_expires_at: otpExpiresAt,
-      });
+      pendingUser = this.pendingUserRepository.create(userToSave);
     }
 
     await this.pendingUserRepository.save(pendingUser);
