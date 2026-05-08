@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,6 +10,7 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { Session } from './entities/session.entity';
+import { PendingUser } from './entities/pending-user.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -20,6 +21,8 @@ export class AuthService {
     private configService: ConfigService,
     @InjectRepository(Session)
     private sessionRepository: Repository<Session>,
+    @InjectRepository(PendingUser)
+    private pendingUserRepository: Repository<PendingUser>,
   ) {}
 
   // ─── Token Helpers ──────────────────────────────────────────────────────────
@@ -43,7 +46,7 @@ export class AuthService {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
   }
 
@@ -58,18 +61,73 @@ export class AuthService {
   // ─── Auth Methods ────────────────────────────────────────────────────────────
 
   async register(createUserDto: CreateUserDto) {
+    // 1. Check if user already exists in permanent table
+    const existingUser = await this.usersService.findByEmail(createUserDto.email);
+    if (existingUser) {
+      throw new ConflictException('Email already registered');
+    }
+
     const { password, ...userData } = createUserDto;
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await this.usersService.create({
-      ...userData,
-      password: hashedPassword,
-    });
+    // 2. Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date();
+    otpExpiresAt.setMinutes(otpExpiresAt.getMinutes() + 10);
+
+    // 3. Save to PendingUser (Upsert)
+    let pendingUser = await this.pendingUserRepository.findOne({ where: { email: createUserDto.email } });
+    
+    if (pendingUser) {
+      Object.assign(pendingUser, { ...userData, password: hashedPassword, otp, otp_expires_at: otpExpiresAt });
+    } else {
+      pendingUser = this.pendingUserRepository.create({
+        ...userData,
+        password: hashedPassword,
+        otp,
+        otp_expires_at: otpExpiresAt,
+      });
+    }
+
+    await this.pendingUserRepository.save(pendingUser);
+
+    // TODO: Send real email
+    console.log(`Verification OTP for ${createUserDto.email}: ${otp}`);
 
     return {
-      message: 'User registered successfully. Please verify your email.',
-      user: { id: user.id, name: user.name, email: user.email },
+      message: 'Registration initiated. Please verify your email with the OTP sent.',
+      email: createUserDto.email,
     };
+  }
+
+  async verifyEmail(verifyEmailDto: VerifyEmailDto) {
+    // 1. Find the pending registration
+    const pendingUser = await this.pendingUserRepository.findOne({ where: { email: verifyEmailDto.email } });
+
+    if (!pendingUser || pendingUser.otp !== verifyEmailDto.otp) {
+      throw new BadRequestException('Invalid email or OTP');
+    }
+
+    // 2. Check if OTP has expired
+    if (pendingUser.otp_expires_at < new Date()) {
+      throw new BadRequestException('OTP has expired. Please register again.');
+    }
+
+    // 3. Move data to permanent Users table
+    const user = await this.usersService.create({
+      name: pendingUser.name,
+      email: pendingUser.email,
+      password: pendingUser.password, // Already hashed
+      role: pendingUser.role,
+    });
+
+    // Mark as verified immediately since they just verified their email
+    await this.usersService.update(user.id, { verified: true });
+
+    // 4. Delete the pending record
+    await this.pendingUserRepository.remove(pendingUser);
+
+    return { message: 'Email verified successfully. Your account is now active.' };
   }
 
   async login(loginDto: LoginDto, req: Express.Request, res: Express.Response) {
@@ -84,6 +142,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // This check is still good as a backup, though with the new flow they 
+    // won't be in the users table unless they are verified.
     if (!user.verified) {
       throw new UnauthorizedException('Please verify your email first');
     }
@@ -92,7 +152,6 @@ export class AuthService {
     const access_token = this.generateAccessToken(payload);
     const refresh_token = this.generateRefreshToken(payload);
 
-    // Create a new session for this device
     const hashedRefreshToken = await bcrypt.hash(refresh_token, 10);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
@@ -117,7 +176,6 @@ export class AuthService {
   async refreshTokens(userId: number, rawRefreshToken: string, req: Express.Request, res: Express.Response) {
     const sessions = await this.sessionRepository.find({ where: { userId } });
     
-    // Find the specific session matching this refresh token
     let currentSession: Session | null = null;
     for (const session of sessions) {
       if (await bcrypt.compare(rawRefreshToken, session.refresh_token)) {
@@ -137,7 +195,6 @@ export class AuthService {
     const new_access_token = this.generateAccessToken(payload);
     const new_refresh_token = this.generateRefreshToken(payload);
 
-    // Rotate the refresh token for this specific session
     currentSession.refresh_token = await bcrypt.hash(new_refresh_token, 10);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
@@ -169,26 +226,6 @@ export class AuthService {
     return { message: 'Logged out successfully from all devices' };
   }
 
-  async verifyEmail(verifyEmailDto: VerifyEmailDto) {
-    const user = await this.usersService.findByEmail(verifyEmailDto.email);
-
-    if (!user || user.otp !== verifyEmailDto.otp) {
-      throw new BadRequestException('Invalid email or OTP');
-    }
-
-    if (user.otp_expires_at && new Date() > user.otp_expires_at) {
-      throw new BadRequestException('OTP has expired');
-    }
-
-    await this.usersService.update(user.id, {
-      verified: true,
-      otp: null as any,
-      otp_expires_at: null as any,
-    });
-
-    return { message: 'Email verified successfully. You can now log in.' };
-  }
-
   // ─── Forgot / Reset Password ─────────────────────────────────────────────────
 
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
@@ -204,8 +241,8 @@ export class AuthService {
 
     await this.usersService.update(user.id, { otp, otp_expires_at });
 
-    // TODO: Replace with email service (e.g. Nodemailer / SendGrid)
-    console.log(`OTP for ${user.email}: ${otp}`);
+    // TODO: Send email
+    console.log(`Password Reset OTP for ${user.email}: ${otp}`);
 
     return { message: 'If an account exists with this email, an OTP has been sent' };
   }
@@ -229,7 +266,6 @@ export class AuthService {
       otp_expires_at: null as any,
     });
 
-    // Option: Logout of all devices on password reset for security
     await this.sessionRepository.delete({ userId: user.id });
 
     return { message: 'Password reset successfully' };

@@ -9,13 +9,14 @@ import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtRefreshStrategy } from './jwt-refresh.strategy';
 import { Session } from './entities/session.entity';
+import { PendingUser } from './entities/pending-user.entity';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
     ConfigModule,
-    TypeOrmModule.forFeature([Session]),
+    TypeOrmModule.forFeature([Session, PendingUser]),
     JwtModule, // No default config — each sign() call gets its own secret/expiry
   ],
   controllers: [AuthController],

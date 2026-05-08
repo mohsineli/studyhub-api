@@ -1,0 +1,74 @@
+@baseUrl = http://localhost:3001
+@email = test@example.com
+@password = Password123!
+@otp = 123456
+
+### 1. Register a new user
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Test User",
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "role": "student"
+}
+
+### 2. Verify Email (Required before login)
+# Note: Check your console log for the actual OTP
+POST {{baseUrl}}/auth/verify-email
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "otp": "{{otp}}"
+}
+
+### 3. Login
+# This will set a 'refresh_token' cookie automatically
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### 4. Get Current Profile (Protected Route)
+# Replace 'YOUR_ACCESS_TOKEN' with the token from login
+GET {{baseUrl}}/auth/me
+Authorization: Bearer YOUR_ACCESS_TOKEN
+
+### 5. Refresh Tokens
+# This requires the 'refresh_token' cookie to be present
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+### 6. Single Device Logout
+# Terminates only this session
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer YOUR_ACCESS_TOKEN
+
+### 7. Logout from ALL Devices
+# Terminates every active session for this user
+POST {{baseUrl}}/auth/logout-all
+Authorization: Bearer YOUR_ACCESS_TOKEN
+
+### 8. Forgot Password (Request OTP)
+POST {{baseUrl}}/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+### 9. Reset Password
+# Note: Check your console log for the new OTP
+POST {{baseUrl}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "otp": "{{otp}}",
+  "newPassword": "NewSecurePassword123!"
+}
