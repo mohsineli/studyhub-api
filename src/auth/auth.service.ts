@@ -8,6 +8,7 @@ import { UsersService } from '../users/users.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { Session } from './entities/session.entity';
 import * as bcrypt from 'bcrypt';
 
@@ -166,6 +167,26 @@ export class AuthService {
     await this.sessionRepository.delete({ userId });
     this.clearRefreshTokenCookie(res);
     return { message: 'Logged out successfully from all devices' };
+  }
+
+  async verifyEmail(verifyEmailDto: VerifyEmailDto) {
+    const user = await this.usersService.findByEmail(verifyEmailDto.email);
+
+    if (!user || user.otp !== verifyEmailDto.otp) {
+      throw new BadRequestException('Invalid email or OTP');
+    }
+
+    if (user.otp_expires_at && new Date() > user.otp_expires_at) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    await this.usersService.update(user.id, {
+      verified: true,
+      otp: null as any,
+      otp_expires_at: null as any,
+    });
+
+    return { message: 'Email verified successfully. You can now log in.' };
   }
 
   // ─── Forgot / Reset Password ─────────────────────────────────────────────────
