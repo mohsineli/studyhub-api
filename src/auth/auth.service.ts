@@ -93,8 +93,8 @@ export class AuthService {
 
     await this.pendingUserRepository.save(pendingUser);
 
-    // Send real email
-    await this.mailService.sendVerificationEmail(createUserDto.email, otp);
+    // Send real email with name
+    await this.mailService.sendVerificationEmail(createUserDto.email, createUserDto.name, otp);
 
     return {
       message: 'Registration initiated. Please verify your email with the OTP sent.',
@@ -243,8 +243,8 @@ export class AuthService {
 
     await this.usersService.update(user.id, { otp, otp_expires_at });
 
-    // Send real email
-    await this.mailService.sendPasswordResetEmail(user.email, otp);
+    // Send real email with name
+    await this.mailService.sendPasswordResetEmail(user.email, user.name, otp);
 
     return { message: 'If an account exists with this email, an OTP has been sent' };
   }

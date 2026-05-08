@@ -10,7 +10,7 @@ export class MailService {
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('MAIL_HOST'),
       port: this.configService.get<number>('MAIL_PORT'),
-      secure: true, // true for 465, false for other ports
+      secure: true,
       auth: {
         type: 'OAuth2',
         user: this.configService.get<string>('MAIL_USER'),
@@ -21,13 +21,14 @@ export class MailService {
     });
   }
 
-  async sendMail(to: string, subject: string, html: string) {
+  private async sendMail(to: string, subject: string, html: string, text: string) {
     try {
       await this.transporter.sendMail({
         from: this.configService.get<string>('MAIL_FROM'),
         to,
         subject,
         html,
+        text,
       });
     } catch (error) {
       console.error('Mail Error:', error);
@@ -35,41 +36,45 @@ export class MailService {
     }
   }
 
-  async sendVerificationEmail(to: string, otp: string) {
-    const subject = 'Verify your StudyHub Account';
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-        <h2 style="color: #4A90E2; text-align: center;">Welcome to StudyHub!</h2>
-        <p>Hello,</p>
-        <p>Thank you for registering. Please use the following One-Time Password (OTP) to verify your email address:</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #333; background: #f4f4f4; padding: 10px 20px; border-radius: 5px;">${otp}</span>
-        </div>
-        <p>This code will expire in 10 minutes.</p>
-        <p>If you did not request this, please ignore this email.</p>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #888; text-align: center;">StudyHub Team &copy; 2026</p>
-      </div>
-    `;
-    await this.sendMail(to, subject, html);
+  async sendVerificationEmail(to: string, name: string, otp: string) {
+    const subject = 'StudyHub - OTP Verification';
+    const otpBoxColor = '#28a745'; // green
+    const headerText = '🔑 OTP Verification';
+    const messageBody = `<p style="color: #333; font-size: 16px;">Hello <b>${name}</b>,</p>
+                         <p>Thank you for registering with <b>StudyHub</b>. Use the OTP below to verify your email:</p>`;
+
+    const html = this.getHtmlTemplate(headerText, messageBody, otp, otpBoxColor);
+    const text = `Hello ${name},\n\nThank you for registering with StudyHub. Your OTP code is: ${otp}\n\nThis OTP is valid for 10 minutes.`;
+
+    await this.sendMail(to, subject, html, text);
   }
 
-  async sendPasswordResetEmail(to: string, otp: string) {
-    const subject = 'Reset your StudyHub Password';
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-        <h2 style="color: #E24A4A; text-align: center;">Password Reset Request</h2>
-        <p>Hello,</p>
-        <p>We received a request to reset your password. Use the following code to proceed:</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #333; background: #f4f4f4; padding: 10px 20px; border-radius: 5px;">${otp}</span>
+  async sendPasswordResetEmail(to: string, name: string, otp: string) {
+    const subject = 'StudyHub - Password Reset OTP';
+    const otpBoxColor = '#dc3545'; // red
+    const headerText = '🔑 Password Reset OTP';
+    const messageBody = `<p style="color: #333; font-size: 16px;">Hello <b>${name}</b>,</p>
+                         <p>You requested a password reset for <b>StudyHub</b>. Please use the OTP below to reset your password:</p>`;
+
+    const html = this.getHtmlTemplate(headerText, messageBody, otp, otpBoxColor);
+    const text = `Hello ${name},\n\nYou requested a password reset for StudyHub. Your OTP code is: ${otp}\n\nThis OTP is valid for 10 minutes.`;
+
+    await this.sendMail(to, subject, html, text);
+  }
+
+  private getHtmlTemplate(headerText: string, messageBody: string, otp: string, otpBoxColor: string): string {
+    return `
+    <div style='font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; text-align: center;'>
+        <div style='max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0px 4px 15px rgba(0,0,0,0.15);'>
+            <h2 style='color: #007BFF;'>${headerText}</h2>
+            ${messageBody}
+            <div style='background: ${otpBoxColor}; color: white; font-size: 24px; font-weight: bold; padding: 15px; margin: 20px auto; width: 200px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);'>
+                ${otp}
+            </div>
+            <p style='color: #777; font-size: 12px;'>This OTP is valid for 10 minutes. If you did not request this, you can safely ignore this email.</p>
+            <hr style='border: 0; height: 1px; background: #ddd; margin: 20px 0;'>
+            <p style='color: #888; font-size: 12px;'>Best Regards,<br><b>StudyHub Team</b></p>
         </div>
-        <p>This code will expire in 10 minutes.</p>
-        <p>If you did not request a password reset, you can safely ignore this email.</p>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="font-size: 12px; color: #888; text-align: center;">StudyHub Team &copy; 2026</p>
-      </div>
-    `;
-    await this.sendMail(to, subject, html);
+    </div>`;
   }
 }
