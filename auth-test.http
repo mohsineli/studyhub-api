@@ -1,9 +1,12 @@
 @baseUrl = http://localhost:3001
-@email = test@example.com
-@password = Password123!
-@otp = 123456
+@email = mihmahmud1002@gmail.com
+@password = Aiub12@#
+@otp = 887262
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsImVtYWlsIjoibWlobWFobXVkMTAwMkBnbWFpbC5jb20iLCJyb2xlIjoic3R1ZGVudCIsImlhdCI6MTc3ODIzODEyOSwiZXhwIjoxNzc4MjM5MDI5fQ.8khW2IujZ1I2xVAUp8234g32vndzAimEifxe7cDW8BA
 
-### 1. Register a new user
+### ─── 1. REGISTRATION FLOW ──────────────────────────────────────────────────
+
+### Step A: Register (Saves to Pending)
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
@@ -14,8 +17,8 @@ Content-Type: application/json
   "role": "student"
 }
 
-### 2. Verify Email (Required before login)
-# Note: Check your console log for the actual OTP
+### Step B: Verify Email (Saves to Users table)
+# Note: Check your real email for the 6-digit OTP
 POST {{baseUrl}}/auth/verify-email
 Content-Type: application/json
 
@@ -24,8 +27,10 @@ Content-Type: application/json
   "otp": "{{otp}}"
 }
 
-### 3. Login
-# This will set a 'refresh_token' cookie automatically
+### ─── 2. AUTHENTICATION ────────────────────────────────────────────────────
+
+### Login
+# This sets the 'refresh_token' cookie automatically
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
@@ -34,27 +39,29 @@ Content-Type: application/json
   "password": "{{password}}"
 }
 
-### 4. Get Current Profile (Protected Route)
-# Replace 'YOUR_ACCESS_TOKEN' with the token from login
+### Get My Profile
+# Copy 'access_token' from Login response and paste into @authToken at the top
 GET {{baseUrl}}/auth/me
-Authorization: Bearer YOUR_ACCESS_TOKEN
+Authorization: Bearer {{authToken}}
 
-### 5. Refresh Tokens
-# This requires the 'refresh_token' cookie to be present
+### Refresh Access Token
+# Requires 'refresh_token' cookie
 POST {{baseUrl}}/auth/refresh
 Content-Type: application/json
 
-### 6. Single Device Logout
-# Terminates only this session
+### ─── 3. LOGOUT ─────────────────────────────────────────────────────────────
+
+### Logout (This Device Only)
 POST {{baseUrl}}/auth/logout
-Authorization: Bearer YOUR_ACCESS_TOKEN
+Authorization: Bearer {{authToken}}
 
-### 7. Logout from ALL Devices
-# Terminates every active session for this user
+### Logout (ALL Devices)
 POST {{baseUrl}}/auth/logout-all
-Authorization: Bearer YOUR_ACCESS_TOKEN
+Authorization: Bearer {{authToken}}
 
-### 8. Forgot Password (Request OTP)
+### ─── 4. PASSWORD RECOVERY ─────────────────────────────────────────────────
+
+### Forgot Password (Sends OTP to email)
 POST {{baseUrl}}/auth/forgot-password
 Content-Type: application/json
 
@@ -62,8 +69,8 @@ Content-Type: application/json
   "email": "{{email}}"
 }
 
-### 9. Reset Password
-# Note: Check your console log for the new OTP
+### Reset Password
+# Note: Check your email for the new OTP
 POST {{baseUrl}}/auth/reset-password
 Content-Type: application/json
 
@@ -72,3 +79,22 @@ Content-Type: application/json
   "otp": "{{otp}}",
   "newPassword": "NewSecurePassword123!"
 }
+
+### ─── 5. USER MANAGEMENT (Internal/Testing) ────────────────────────────────
+
+### Find All Users
+GET {{baseUrl}}/users
+
+### Find One User
+GET {{baseUrl}}/users/1
+
+### Update User
+PATCH {{baseUrl}}/users/1
+Content-Type: application/json
+
+{
+  "name": "Updated Name"
+}
+
+### Delete User
+DELETE {{baseUrl}}/users/1
