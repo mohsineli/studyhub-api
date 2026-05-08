@@ -11,6 +11,7 @@ import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { Session } from './entities/session.entity';
 import { PendingUser } from './entities/pending-user.entity';
+import { MailService } from '../mail/mail.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -23,6 +24,7 @@ export class AuthService {
     private sessionRepository: Repository<Session>,
     @InjectRepository(PendingUser)
     private pendingUserRepository: Repository<PendingUser>,
+    private mailService: MailService,
   ) {}
 
   // ─── Token Helpers ──────────────────────────────────────────────────────────
@@ -91,8 +93,8 @@ export class AuthService {
 
     await this.pendingUserRepository.save(pendingUser);
 
-    // TODO: Send real email
-    console.log(`Verification OTP for ${createUserDto.email}: ${otp}`);
+    // Send real email
+    await this.mailService.sendVerificationEmail(createUserDto.email, otp);
 
     return {
       message: 'Registration initiated. Please verify your email with the OTP sent.',
@@ -241,8 +243,8 @@ export class AuthService {
 
     await this.usersService.update(user.id, { otp, otp_expires_at });
 
-    // TODO: Send email
-    console.log(`Password Reset OTP for ${user.email}: ${otp}`);
+    // Send real email
+    await this.mailService.sendPasswordResetEmail(user.email, otp);
 
     return { message: 'If an account exists with this email, an OTP has been sent' };
   }
