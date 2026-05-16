@@ -27,7 +27,6 @@ export class CreateNoteDto {
 
   @IsString()
   @IsNotEmpty()
-  @MaxLength(255)
   file_path: string;
 
   @IsString()

@@ -34,7 +34,7 @@ export class Note {
   @Column({ length: 100, nullable: false })
   dept: string;
 
-  @Column({ length: 255 })
+  @Column({ type: 'text' })
   file_path: string;
 
   @Column({ length: 20, nullable: false })
