@@ -26,11 +26,7 @@ export class UsersService {
   }
 
   async findAll(): Promise<User[]> {
-    const users = await this.usersRepository.find();
-    if (users.length === 0) {
-      throw new NotFoundException('No users found');
-    }
-    return users;
+    return await this.usersRepository.find();
   }
 
   async getLeaderboard(period?: string): Promise<User[]> {
@@ -53,11 +49,7 @@ export class UsersService {
            .andWhere('EXTRACT(YEAR FROM user.created_at) = :year', { year });
     }
 
-    const users = await query.getMany();
-    if (users.length === 0) {
-      throw new NotFoundException('No players found in the leaderboard');
-    }
-    return users;
+    return await query.getMany();
   }
 
   async findOne(id: number): Promise<User> {
