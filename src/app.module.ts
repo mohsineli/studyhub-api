@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { MailModule } from './mail/mail.module';
 import { NotesModule } from './notes/notes.module';
+import { BookmarksModule } from './bookmarks/bookmarks.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { NotesModule } from './notes/notes.module';
     UsersModule,
     MailModule,
     NotesModule,
+    BookmarksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

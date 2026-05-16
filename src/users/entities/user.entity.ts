@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, OneToMany } from 'typeorm';
 import { Note } from '../../notes/entities/note.entity';
+import { Bookmark } from '../../bookmarks/entities/bookmark.entity';
 
 export enum UserRole {
   STUDENT = 'student',
@@ -45,4 +46,7 @@ export class User {
 
   @OneToMany(() => Note, (note) => note.uploader)
   notes: Note[];
+
+  @OneToMany(() => Bookmark, (bookmark) => bookmark.user)
+  bookmarks: Bookmark[];
 }

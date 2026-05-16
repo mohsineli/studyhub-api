@@ -1,5 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Bookmark } from '../../bookmarks/entities/bookmark.entity';
 
 export enum NoteStatus {
   PENDING = 'pending',
@@ -55,4 +56,7 @@ export class Note {
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
   created_at: Date;
+
+  @OneToMany(() => Bookmark, (bookmark) => bookmark.note)
+  bookmarks: Bookmark[];
 }
