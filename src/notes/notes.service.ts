@@ -23,10 +23,24 @@ export class NotesService {
     return await this.noteRepository.save(note);
   }
 
-  async findAll() {
+  async findAll(sort?: string) {
+    const order: any = {};
+    
+    switch (sort) {
+      case 'top-rated':
+        order.avg_rating = 'DESC';
+        break;
+      case 'most-downloaded':
+        order.downloads = 'DESC';
+        break;
+      default:
+        order.created_at = 'DESC';
+    }
+
     return await this.noteRepository.find({
       where: { status: NoteStatus.APPROVED },
       relations: ['uploader'],
+      order,
     });
   }
 
