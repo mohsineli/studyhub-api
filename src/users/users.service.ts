@@ -33,7 +33,7 @@ export class UsersService {
     const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.name', 'user.points', 'user.created_at'])
       .orderBy('user.points', 'DESC')
-      .take(10);
+      .take(30);
 
     if (period === 'current' || period === 'previous') {
       const targetDate = new Date();
