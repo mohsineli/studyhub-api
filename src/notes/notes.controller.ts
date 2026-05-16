@@ -5,11 +5,11 @@ import { UpdateNoteDto } from './dto/update-note.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('notes')
+@UseGuards(JwtAuthGuard)
 export class NotesController {
   constructor(private readonly notesService: NotesService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
   create(@Body() createNoteDto: CreateNoteDto, @Req() req: any) {
     return this.notesService.create(createNoteDto, req.user.id);
   }
@@ -25,19 +25,16 @@ export class NotesController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
   update(@Param('id', ParseIntPipe) id: number, @Body() updateNoteDto: UpdateNoteDto) {
     return this.notesService.update(id, updateNoteDto);
   }
 
   @Post(':id/download')
-  @UseGuards(JwtAuthGuard)
   incrementDownload(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.notesService.incrementDownload(id, req.user.id);
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.notesService.remove(id);
   }
