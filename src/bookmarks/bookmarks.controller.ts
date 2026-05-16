@@ -1,0 +1,30 @@
+import { Controller, Get, Post, Body, Param, Delete, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
+import { BookmarksService } from './bookmarks.service';
+import { CreateBookmarkDto } from './dto/create-bookmark.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+
+@Controller('bookmarks')
+@UseGuards(JwtAuthGuard)
+export class BookmarksController {
+  constructor(private readonly bookmarksService: BookmarksService) {}
+
+  @Post()
+  create(@Body() createBookmarkDto: CreateBookmarkDto, @Req() req: any) {
+    return this.bookmarksService.create(createBookmarkDto, req.user.id);
+  }
+
+  @Post('toggle')
+  toggle(@Body() createBookmarkDto: CreateBookmarkDto, @Req() req: any) {
+    return this.bookmarksService.toggle(createBookmarkDto, req.user.id);
+  }
+
+  @Get()
+  findAll(@Req() req: any) {
+    return this.bookmarksService.findAllByUser(req.user.id);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.bookmarksService.remove(id, req.user.id);
+  }
+}
