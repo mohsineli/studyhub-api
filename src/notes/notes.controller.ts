@@ -31,8 +31,9 @@ export class NotesController {
   }
 
   @Post(':id/download')
-  incrementDownload(@Param('id', ParseIntPipe) id: number) {
-    return this.notesService.incrementDownload(id);
+  @UseGuards(JwtAuthGuard)
+  incrementDownload(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.notesService.incrementDownload(id, req.user.id);
   }
 
   @Delete(':id')
