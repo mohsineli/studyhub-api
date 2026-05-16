@@ -36,6 +36,13 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
       throw new UnauthorizedException('Access Denied');
     }
 
-    return { id: user.id, email: user.email, role: user.role, refreshToken };
+    return { 
+      id: user.id, 
+      email: user.email, 
+      role: user.role, 
+      name: user.name, 
+      points: user.points, 
+      refreshToken 
+    };
   }
 }

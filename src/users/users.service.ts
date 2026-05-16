@@ -26,7 +26,38 @@ export class UsersService {
   }
 
   async findAll(): Promise<User[]> {
-    return await this.usersRepository.find();
+    const users = await this.usersRepository.find();
+    if (users.length === 0) {
+      throw new NotFoundException('No users found');
+    }
+    return users;
+  }
+
+  async getLeaderboard(period?: string): Promise<User[]> {
+    const query = this.usersRepository.createQueryBuilder('user')
+      .select(['user.id', 'user.name', 'user.points', 'user.created_at'])
+      .orderBy('user.points', 'DESC')
+      .take(10);
+
+    if (period === 'current' || period === 'previous') {
+      const targetDate = new Date();
+      if (period === 'previous') {
+        targetDate.setMonth(targetDate.getMonth() - 1);
+      }
+      
+      const year = targetDate.getFullYear();
+      const month = targetDate.getMonth() + 1; // JS months are 0-11
+      
+      // Using EXTRACT for PostgreSQL month/year filtering
+      query.andWhere('EXTRACT(MONTH FROM user.created_at) = :month', { month })
+           .andWhere('EXTRACT(YEAR FROM user.created_at) = :year', { year });
+    }
+
+    const users = await query.getMany();
+    if (users.length === 0) {
+      throw new NotFoundException('No players found in the leaderboard');
+    }
+    return users;
   }
 
   async findOne(id: number): Promise<User> {
