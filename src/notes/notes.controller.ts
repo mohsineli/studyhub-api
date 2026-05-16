@@ -30,6 +30,11 @@ export class NotesController {
     return this.notesService.update(id, updateNoteDto);
   }
 
+  @Post(':id/download')
+  incrementDownload(@Param('id', ParseIntPipe) id: number) {
+    return this.notesService.incrementDownload(id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   remove(@Param('id', ParseIntPipe) id: number) {

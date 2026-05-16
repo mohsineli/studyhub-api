@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
-import { Note } from './entities/note.entity';
+import { Note, NoteStatus } from './entities/note.entity';
 
 @Injectable()
 export class NotesService {
@@ -22,6 +22,7 @@ export class NotesService {
 
   async findAll() {
     return await this.noteRepository.find({
+      where: { status: NoteStatus.APPROVED },
       relations: ['uploader'],
     });
   }
@@ -40,6 +41,12 @@ export class NotesService {
   async update(id: number, updateNoteDto: UpdateNoteDto) {
     const note = await this.findOne(id);
     Object.assign(note, updateNoteDto);
+    return await this.noteRepository.save(note);
+  }
+
+  async incrementDownload(id: number) {
+    const note = await this.findOne(id);
+    note.downloads += 1;
     return await this.noteRepository.save(note);
   }
 
