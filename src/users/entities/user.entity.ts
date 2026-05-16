@@ -1,4 +1,5 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, OneToMany } from 'typeorm';
+import { Note } from '../../notes/entities/note.entity';
 
 export enum UserRole {
   STUDENT = 'student',
@@ -41,4 +42,7 @@ export class User {
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
   created_at: Date;
+
+  @OneToMany(() => Note, (note) => note.uploader)
+  notes: Note[];
 }
