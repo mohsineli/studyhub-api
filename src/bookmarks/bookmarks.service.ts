@@ -37,7 +37,7 @@ export class BookmarksService {
   async findAllByUser(userId: number) {
     return await this.bookmarkRepository.find({
       where: { user_id: userId },
-      relations: ['note'],
+      relations: ['note', 'resource'],
       order: { created_at: 'DESC' },
     });
   }
