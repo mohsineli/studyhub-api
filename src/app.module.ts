@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { MailModule } from './mail/mail.module';
 import { NotesModule } from './notes/notes.module';
 import { BookmarksModule } from './bookmarks/bookmarks.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { BookmarksModule } from './bookmarks/bookmarks.module';
     MailModule,
     NotesModule,
     BookmarksModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
