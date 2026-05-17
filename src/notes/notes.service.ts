@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateNoteDto } from './dto/create-note.dto';
@@ -62,8 +62,11 @@ export class NotesService {
     return note;
   }
 
-  async update(id: number, updateNoteDto: UpdateNoteDto) {
+  async update(id: number, updateNoteDto: UpdateNoteDto, user: any) {
     const note = await this.findOne(id);
+    if (note.uploader_id !== user.id && user.role !== 'admin' && user.role !== 'moderator') {
+      throw new ForbiddenException('You do not have permission to update this note');
+    }
     Object.assign(note, updateNoteDto);
     return await this.noteRepository.save(note);
   }
@@ -84,8 +87,11 @@ export class NotesService {
     return note;
   }
 
-  async remove(id: number) {
+  async remove(id: number, user: any) {
     const note = await this.findOne(id);
+    if (note.uploader_id !== user.id && user.role !== 'admin' && user.role !== 'moderator') {
+      throw new ForbiddenException('You do not have permission to delete this note');
+    }
     return await this.noteRepository.remove(note);
   }
 }

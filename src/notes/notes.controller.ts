@@ -30,8 +30,12 @@ export class NotesController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateNoteDto: UpdateNoteDto) {
-    return this.notesService.update(id, updateNoteDto);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateNoteDto: UpdateNoteDto,
+    @Req() req: any,
+  ) {
+    return this.notesService.update(id, updateNoteDto, req.user);
   }
 
   @Post(':id/download')
@@ -40,7 +44,7 @@ export class NotesController {
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.notesService.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.notesService.remove(id, req.user);
   }
 }
