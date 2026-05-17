@@ -31,13 +31,13 @@ export class UsersController {
   }
 
   @Patch('profile')
-  @Roles(UserRole.STUDENT, UserRole.ADMIN)
+  @Roles(UserRole.STUDENT, UserRole.ADMIN, UserRole.MODERATOR)
   updateProfile(@Req() req: any, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.updateProfile(req.user.id, updateUserDto);
   }
 
   @Get('leaderboard')
-  @Roles(UserRole.STUDENT, UserRole.ADMIN)
+  @Roles(UserRole.STUDENT, UserRole.ADMIN, UserRole.MODERATOR)
   getLeaderboard(@Query('period') period?: string) {
     return this.usersService.getLeaderboard(period);
   }
@@ -64,11 +64,20 @@ export class UsersController {
     return this.usersService.setRole(id, UserRole.STUDENT, req.user.id);
   }
 
-  // --- Standard CRUD ---
+  // --- Standard CRUD & Directory ---
 
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  findAll(
+    @Query('search') search?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.usersService.findAll({
+      search,
+      limit: limit ? +limit : 20,
+      offset: offset ? +offset : 0,
+    });
   }
 
   @Get(':id')

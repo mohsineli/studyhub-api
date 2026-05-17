@@ -26,13 +26,29 @@ export class UsersService {
     return await this.usersRepository.save(user);
   }
 
-  async findAll(): Promise<User[]> {
-    return await this.usersRepository.find();
+  async findAll(options?: { search?: string; limit?: number; offset?: number }): Promise<{ users: User[]; total: number }> {
+    const query = this.usersRepository.createQueryBuilder('user')
+      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
+      .orderBy('user.created_at', 'DESC');
+
+    if (options?.search) {
+      query.where('user.name ILIKE :search OR user.email ILIKE :search OR user.dept ILIKE :search', { search: `%${options.search}%` });
+    }
+
+    if (options?.limit) {
+      query.take(options.limit);
+    }
+    if (options?.offset) {
+      query.skip(options.offset);
+    }
+
+    const [users, total] = await query.getManyAndCount();
+    return { users, total };
   }
 
   async getLeaderboard(period?: string): Promise<User[]> {
     const query = this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.name', 'user.points', 'user.created_at', 'user.profile_pic'])
+      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
       .orderBy('user.points', 'DESC')
       .take(30);
 
