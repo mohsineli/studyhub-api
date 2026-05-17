@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Query,
+  Req,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -26,6 +27,12 @@ export class UsersController {
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
+  }
+
+  @Patch('profile')
+  @Roles(UserRole.STUDENT, UserRole.ADMIN)
+  updateProfile(@Req() req: any, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.updateProfile(req.user.id, updateUserDto);
   }
 
   @Get('leaderboard')

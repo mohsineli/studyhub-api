@@ -35,6 +35,12 @@ export class User {
   @Column({ type: 'boolean', default: false })
   verified: boolean;
 
+  @Column({ length: 255, nullable: true })
+  dept: string;
+
+  @Column({ length: 255, nullable: true })
+  code: string;
+
   @Column({ length: 6, nullable: true })
   otp: string;
 

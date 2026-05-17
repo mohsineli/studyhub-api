@@ -8,6 +8,15 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @MinLength(8)
   password?: string;
 
-  // We remove otp, otp_expires_at, and verified from here.
-  // These should only be modified by the AuthService, not by a user PATCH request.
+  @IsOptional()
+  @IsString()
+  dept?: string;
+
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @IsOptional()
+  @IsString()
+  currentPassword?: string;
 }

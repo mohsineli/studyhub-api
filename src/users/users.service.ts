@@ -1,4 +1,5 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -66,7 +67,55 @@ export class UsersService {
 
   async update(id: number, updateUserDto: Partial<User>): Promise<User> {
     const user = await this.findOne(id);
+    if (updateUserDto.password && !updateUserDto.password.startsWith('$2')) {
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+    }
     Object.assign(user, updateUserDto);
+    return await this.usersRepository.save(user);
+  }
+
+  async updateProfile(id: number, updateProfileDto: any): Promise<User> {
+    const user = await this.findOne(id);
+    let changed = false;
+
+    // Check if new password is being set
+    if (updateProfileDto.password) {
+      if (!updateProfileDto.currentPassword) {
+        throw new BadRequestException('Current password is required to change password.');
+      }
+      
+      const isMatch = await bcrypt.compare(updateProfileDto.currentPassword, user.password);
+      if (!isMatch) {
+        throw new BadRequestException('Current password is incorrect.');
+      }
+
+      const isSamePassword = await bcrypt.compare(updateProfileDto.password, user.password);
+      if (isSamePassword) {
+        throw new BadRequestException('New password cannot be the same as your current password.');
+      }
+
+      user.password = await bcrypt.hash(updateProfileDto.password, 10);
+      changed = true;
+    }
+
+    // Update other properties if provided and different
+    if (updateProfileDto.name && updateProfileDto.name !== user.name) {
+      user.name = updateProfileDto.name;
+      changed = true;
+    }
+    if (updateProfileDto.dept !== undefined && updateProfileDto.dept !== user.dept) {
+      user.dept = updateProfileDto.dept;
+      changed = true;
+    }
+    if (updateProfileDto.code !== undefined && updateProfileDto.code !== user.code) {
+      user.code = updateProfileDto.code;
+      changed = true;
+    }
+
+    if (!changed) {
+      throw new BadRequestException('No changes detected.');
+    }
+
     return await this.usersRepository.save(user);
   }
 
