@@ -20,17 +20,31 @@ import { AdminModule } from './admin/admin.module';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>('DATABASE_HOST'),
-        port: configService.get<number>('DATABASE_PORT'),
-        username: configService.get<string>('DATABASE_USERNAME'),
-        password: configService.get<string>('DATABASE_PASSWORD'),
-        database: configService.get<string>('DATABASE_NAME'),
-        autoLoadEntities: true,
-        synchronize: true,
-        ssl: configService.get<string>('DATABASE_HOST') !== 'localhost' ? { rejectUnauthorized: false } : false,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const dbUrl = configService.get<string>('DATABASE_URL');
+        
+        if (dbUrl) {
+          return {
+            type: 'postgres',
+            url: dbUrl,
+            autoLoadEntities: true,
+            synchronize: true,
+            ssl: { rejectUnauthorized: false },
+          };
+        }
+
+        return {
+          type: 'postgres',
+          host: configService.get<string>('DATABASE_HOST'),
+          port: configService.get<number>('DATABASE_PORT'),
+          username: configService.get<string>('DATABASE_USERNAME'),
+          password: configService.get<string>('DATABASE_PASSWORD'),
+          database: configService.get<string>('DATABASE_NAME'),
+          autoLoadEntities: true,
+          synchronize: true,
+          ssl: configService.get<string>('DATABASE_HOST') !== 'localhost' ? { rejectUnauthorized: false } : false,
+        };
+      },
     }),
     AuthModule,
     UsersModule,
