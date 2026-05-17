@@ -176,4 +176,28 @@ export class UsersService {
     await this.usersRepository.save(user);
     return { message: `User "${user.name}" role updated to "${role}".` };
   }
+
+  async updateLastActive(id: number): Promise<void> {
+    await this.usersRepository.update(id, { last_active_at: new Date() });
+  }
+
+  async findActiveUsersByDay(dateString?: string): Promise<{ users: User[]; total: number }> {
+    let dateStr = dateString;
+    if (!dateStr) {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      dateStr = `${year}-${month}-${day}`;
+    }
+
+    // Use PostgreSQL TO_CHAR to match the YYYY-MM-DD string exactly
+    const query = this.usersRepository.createQueryBuilder('user')
+      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
+      .where("TO_CHAR(user.last_active_at, 'YYYY-MM-DD') = :dateStr", { dateStr })
+      .orderBy('user.last_active_at', 'DESC');
+
+    const [users, total] = await query.getManyAndCount();
+    return { users, total };
+  }
 }

@@ -171,6 +171,9 @@ export class AuthService {
     });
     await this.sessionRepository.save(session);
 
+    // Explicitly update last_active_at on login so it's instantly recorded
+    await this.usersService.updateLastActive(user.id);
+
     this.setRefreshTokenCookie(res, refresh_token);
 
     return {

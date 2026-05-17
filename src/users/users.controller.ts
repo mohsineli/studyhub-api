@@ -44,6 +44,12 @@ export class UsersController {
 
   // --- Admin user management ---
 
+  @Get('active')
+  @Roles(UserRole.ADMIN)
+  getActiveUsersByDay(@Query('date') date?: string) {
+    return this.usersService.findActiveUsersByDay(date);
+  }
+
   @Post(':id/ban')
   banUser(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.usersService.banUser(id, req.user.id);
