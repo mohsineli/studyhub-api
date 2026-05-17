@@ -3,6 +3,10 @@ import { NotesService } from './notes.service';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
+import { NoteStatus } from './entities/note.entity';
 
 @Controller('notes')
 @UseGuards(JwtAuthGuard)
@@ -22,6 +26,23 @@ export class NotesController {
   @Get('my-notes')
   findMyNotes(@Req() req: any) {
     return this.notesService.findMyNotes(req.user.id);
+  }
+
+  @Get('pending')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  findPending() {
+    return this.notesService.findPending();
+  }
+
+  @Patch(':id/status')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('status') status: NoteStatus,
+  ) {
+    return this.notesService.updateStatus(id, status);
   }
 
   @Get(':id')

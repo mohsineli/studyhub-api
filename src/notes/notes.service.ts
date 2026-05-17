@@ -94,4 +94,25 @@ export class NotesService {
     }
     return await this.noteRepository.remove(note);
   }
+
+  async findPending() {
+    return await this.noteRepository.find({
+      where: { status: NoteStatus.PENDING },
+      relations: ['uploader'],
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  async updateStatus(id: number, status: NoteStatus) {
+    const note = await this.findOne(id);
+    note.status = status;
+    await this.noteRepository.save(note);
+
+    // Reward uploader with 10 points when their note is approved!
+    if (status === NoteStatus.APPROVED) {
+      await this.userRepository.increment({ id: note.uploader_id }, 'points', 10);
+    }
+
+    return note;
+  }
 }
