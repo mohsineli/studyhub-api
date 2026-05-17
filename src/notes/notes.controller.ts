@@ -28,6 +28,13 @@ export class NotesController {
     return this.notesService.findMyNotes(req.user.id);
   }
 
+  @Get('trending')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  findTrending() {
+    return this.notesService.findTrending();
+  }
+
   @Get('pending')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)

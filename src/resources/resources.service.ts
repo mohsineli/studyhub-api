@@ -44,6 +44,18 @@ export class ResourcesService {
     });
   }
 
+  async findTrending(): Promise<Resource[]> {
+    return await this.resourceRepository.find({
+      where: { status: ResourceStatus.APPROVED },
+      relations: ['uploader'],
+      order: {
+        downloads: 'DESC',
+        avg_rating: 'DESC',
+      },
+      take: 10,
+    });
+  }
+
   async findOne(id: number): Promise<Resource> {
     const resource = await this.resourceRepository.findOne({
       where: { id },

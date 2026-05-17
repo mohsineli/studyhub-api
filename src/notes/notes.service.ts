@@ -44,6 +44,17 @@ export class NotesService {
     });
   }
 
+  async findTrending(): Promise<Note[]> {
+    return await this.noteRepository.find({
+      where: { status: NoteStatus.APPROVED },
+      relations: ['uploader'],
+      order: {
+        downloads: 'DESC',
+      },
+      take: 10,
+    });
+  }
+
   async findMyNotes(uploaderId: number) {
     return await this.noteRepository.find({
       where: { uploader_id: uploaderId },

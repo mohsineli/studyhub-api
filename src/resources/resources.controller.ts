@@ -30,10 +30,12 @@ export class ResourcesController {
     return this.resourcesService.findAll();
   }
 
-  // Any authenticated user can view a single resource
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.resourcesService.findOne(id);
+  // Admin and moderator can see trending resources
+  @Get('trending')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  findTrending() {
+    return this.resourcesService.findTrending();
   }
 
   // Admin and moderator can see pending resources
@@ -42,6 +44,12 @@ export class ResourcesController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   findPending() {
     return this.resourcesService.findPending();
+  }
+
+  // Any authenticated user can view a single resource
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.resourcesService.findOne(id);
   }
 
   // Admin and moderator can upload resources
