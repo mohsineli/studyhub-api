@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Unique, Index } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Note } from '../../notes/entities/note.entity';
+import { Resource } from '../../resources/entities/resource.entity';
 
 @Entity('bookmarks')
 @Unique('unique_user_note', ['user_id', 'note_id'])
@@ -27,6 +28,10 @@ export class Bookmark {
 
   @Column({ nullable: true })
   resource_id: number;
+
+  @ManyToOne(() => Resource, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'resource_id' })
+  resource: Resource;
 
   @Column({ length: 255, nullable: true })
   subject_name: string;
