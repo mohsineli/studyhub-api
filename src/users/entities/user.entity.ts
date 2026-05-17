@@ -41,6 +41,9 @@ export class User {
   @Column({ length: 255, nullable: true })
   code: string;
 
+  @Column({ type: 'text', nullable: true })
+  profile_pic: string;
+
   @Column({ length: 6, nullable: true })
   otp: string;
 

@@ -111,6 +111,10 @@ export class UsersService {
       user.code = updateProfileDto.code;
       changed = true;
     }
+    if (updateProfileDto.profile_pic !== undefined && updateProfileDto.profile_pic !== user.profile_pic) {
+      user.profile_pic = updateProfileDto.profile_pic;
+      changed = true;
+    }
 
     if (!changed) {
       throw new BadRequestException('No changes detected.');
