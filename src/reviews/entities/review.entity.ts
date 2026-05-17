@@ -25,6 +25,9 @@ export class Review {
   @Column({ type: 'int', width: 1 })
   rating: number;
 
+  @Column({ type: 'text', nullable: true })
+  comment?: string;
+
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
   created_at: Date;
 

@@ -30,11 +30,13 @@ export class ReviewsService {
 
     if (review) {
       review.rating = createReviewDto.rating;
+      review.comment = createReviewDto.comment;
     } else {
       review = this.reviewRepository.create({
         user_id: userId,
         note_id: noteId,
         rating: createReviewDto.rating,
+        comment: createReviewDto.comment,
       });
     }
 
