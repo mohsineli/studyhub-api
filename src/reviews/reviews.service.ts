@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Review } from './entities/review.entity';
 import { Note } from '../notes/entities/note.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 
@@ -13,9 +14,16 @@ export class ReviewsService {
     private readonly reviewRepository: Repository<Review>,
     @InjectRepository(Note)
     private readonly noteRepository: Repository<Note>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   async submitRating(userId: number, noteId: number, rating: number) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user?.banned) {
+      throw new ForbiddenException('Banned users cannot submit ratings.');
+    }
+
     const note = await this.noteRepository.findOne({ where: { id: noteId } });
     if (!note) {
       throw new NotFoundException(`Note with ID ${noteId} not found`);
@@ -44,6 +52,11 @@ export class ReviewsService {
   }
 
   async submitComment(userId: number, noteId: number, comment: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user?.banned) {
+      throw new ForbiddenException('Banned users cannot post comments.');
+    }
+
     const note = await this.noteRepository.findOne({ where: { id: noteId } });
     if (!note) {
       throw new NotFoundException(`Note with ID ${noteId} not found`);

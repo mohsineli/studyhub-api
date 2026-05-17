@@ -35,6 +35,9 @@ export class User {
   @Column({ type: 'boolean', default: false })
   verified: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  banned: boolean;
+
   @Column({ length: 255, nullable: true })
   dept: string;
 

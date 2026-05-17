@@ -1,10 +1,10 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
@@ -126,5 +126,38 @@ export class UsersService {
   async remove(id: number): Promise<void> {
     const user = await this.findOne(id);
     await this.usersRepository.remove(user);
+  }
+
+  async banUser(targetId: number, adminId: number): Promise<{ message: string }> {
+    if (targetId === adminId) {
+      throw new ForbiddenException('You cannot ban yourself.');
+    }
+    const user = await this.findOne(targetId);
+    if (user.role === UserRole.ADMIN) {
+      throw new ForbiddenException('Cannot ban an admin.');
+    }
+    user.banned = true;
+    await this.usersRepository.save(user);
+    return { message: `User "${user.name}" has been banned.` };
+  }
+
+  async unbanUser(targetId: number): Promise<{ message: string }> {
+    const user = await this.findOne(targetId);
+    user.banned = false;
+    await this.usersRepository.save(user);
+    return { message: `User "${user.name}" has been unbanned.` };
+  }
+
+  async setRole(targetId: number, role: UserRole, adminId: number): Promise<{ message: string }> {
+    if (targetId === adminId) {
+      throw new ForbiddenException('You cannot change your own role.');
+    }
+    const user = await this.findOne(targetId);
+    if (user.role === UserRole.ADMIN) {
+      throw new ForbiddenException('Cannot change the role of another admin.');
+    }
+    user.role = role;
+    await this.usersRepository.save(user);
+    return { message: `User "${user.name}" role updated to "${role}".` };
   }
 }

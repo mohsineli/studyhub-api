@@ -9,6 +9,7 @@ import {
   UseGuards,
   Query,
   Req,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -20,7 +21,7 @@ import { UserRole } from './entities/user.entity';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN) // Only admins can access any route in this controller
+@Roles(UserRole.ADMIN)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -40,6 +41,30 @@ export class UsersController {
   getLeaderboard(@Query('period') period?: string) {
     return this.usersService.getLeaderboard(period);
   }
+
+  // --- Admin user management ---
+
+  @Post(':id/ban')
+  banUser(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.usersService.banUser(id, req.user.id);
+  }
+
+  @Post(':id/unban')
+  unbanUser(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.unbanUser(id);
+  }
+
+  @Post(':id/promote')
+  promoteToModerator(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.usersService.setRole(id, UserRole.MODERATOR, req.user.id);
+  }
+
+  @Post(':id/demote')
+  demoteToStudent(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.usersService.setRole(id, UserRole.STUDENT, req.user.id);
+  }
+
+  // --- Standard CRUD ---
 
   @Get()
   findAll() {
