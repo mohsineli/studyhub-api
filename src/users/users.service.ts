@@ -32,7 +32,7 @@ export class UsersService {
 
   async getLeaderboard(period?: string): Promise<User[]> {
     const query = this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.name', 'user.points', 'user.created_at'])
+      .select(['user.id', 'user.name', 'user.points', 'user.created_at', 'user.profile_pic'])
       .orderBy('user.points', 'DESC')
       .take(30);
 
