@@ -14,37 +14,66 @@ export class ReviewsService {
     private readonly noteRepository: Repository<Note>,
   ) {}
 
-  async createOrUpdate(userId: number, noteId: number, createReviewDto: CreateReviewDto) {
+  async submitRating(userId: number, noteId: number, rating: number) {
     const note = await this.noteRepository.findOne({ where: { id: noteId } });
     if (!note) {
       throw new NotFoundException(`Note with ID ${noteId} not found`);
     }
 
-    if (note.uploader_id === userId) {
-      throw new BadRequestException('You cannot rate your own note.');
-    }
-
-    let review = await this.reviewRepository.findOne({
-      where: { user_id: userId, note_id: noteId },
-    });
+    let review = await this.reviewRepository.createQueryBuilder('review')
+      .where('review.user_id = :userId', { userId })
+      .andWhere('review.note_id = :noteId', { noteId })
+      .andWhere('review.rating > 0')
+      .getOne();
 
     if (review) {
-      review.rating = createReviewDto.rating;
-      review.comment = createReviewDto.comment;
+      review.rating = rating;
     } else {
       review = this.reviewRepository.create({
         user_id: userId,
         note_id: noteId,
-        rating: createReviewDto.rating,
-        comment: createReviewDto.comment,
+        rating: rating,
+        comment: '',
       });
     }
 
     await this.reviewRepository.save(review);
-
-    // Recalculate average rating for the note
     await this.updateNoteAverageRating(noteId);
+    return review;
+  }
 
+  async submitComment(userId: number, noteId: number, comment: string) {
+    const note = await this.noteRepository.findOne({ where: { id: noteId } });
+    if (!note) {
+      throw new NotFoundException(`Note with ID ${noteId} not found`);
+    }
+
+    const review = this.reviewRepository.create({
+      user_id: userId,
+      note_id: noteId,
+      rating: 0,
+      comment: comment,
+    });
+
+    await this.reviewRepository.save(review);
+    return review;
+  }
+
+  async updateById(userId: number, reviewId: number, updateReviewDto: CreateReviewDto) {
+    const review = await this.reviewRepository.findOne({ where: { id: reviewId, user_id: userId } });
+    if (!review) {
+      throw new NotFoundException('Review not found or unauthorized');
+    }
+
+    if (updateReviewDto.rating !== undefined) {
+      review.rating = updateReviewDto.rating;
+    }
+    if (updateReviewDto.comment !== undefined) {
+      review.comment = updateReviewDto.comment;
+    }
+
+    await this.reviewRepository.save(review);
+    await this.updateNoteAverageRating(review.note_id);
     return review;
   }
 
@@ -57,12 +86,15 @@ export class ReviewsService {
   }
 
   async findOneByUserAndNote(userId: number, noteId: number): Promise<Review | null> {
-    return await this.reviewRepository.findOne({
-      where: { user_id: userId, note_id: noteId },
-    });
+    return await this.reviewRepository.createQueryBuilder('review')
+      .where('review.user_id = :userId', { userId })
+      .andWhere('review.note_id = :noteId', { noteId })
+      .andWhere('review.rating > 0')
+      .getOne();
   }
 
   async remove(userId: number, noteId: number) {
+    // Keep this for backwards compatibility just in case
     const review = await this.reviewRepository.findOne({
       where: { user_id: userId, note_id: noteId },
     });
@@ -77,10 +109,23 @@ export class ReviewsService {
     return { message: 'Review successfully removed' };
   }
 
+  async removeById(userId: number, reviewId: number) {
+    const review = await this.reviewRepository.findOne({ where: { id: reviewId, user_id: userId } });
+    if (!review) {
+      throw new NotFoundException('Review not found or unauthorized');
+    }
+    const noteId = review.note_id;
+
+    await this.reviewRepository.remove(review);
+    await this.updateNoteAverageRating(noteId);
+    return { message: 'Review successfully removed' };
+  }
+
   private async updateNoteAverageRating(noteId: number): Promise<void> {
-    const ratings = await this.reviewRepository.find({
-      where: { note_id: noteId },
-    });
+    const ratings = await this.reviewRepository.createQueryBuilder('review')
+      .where('review.note_id = :noteId', { noteId })
+      .andWhere('review.rating > 0')
+      .getMany();
 
     let avgRating = 0;
     if (ratings.length > 0) {

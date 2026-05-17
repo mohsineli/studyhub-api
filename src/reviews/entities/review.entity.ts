@@ -3,7 +3,6 @@ import { User } from '../../users/entities/user.entity';
 import { Note } from '../../notes/entities/note.entity';
 
 @Entity('reviews')
-@Unique('unique_user_note_review', ['user_id', 'note_id'])
 export class Review {
   @PrimaryGeneratedColumn()
   id: number;
