@@ -29,6 +29,7 @@ import { AdminModule } from './admin/admin.module';
         database: configService.get<string>('DATABASE_NAME'),
         autoLoadEntities: true,
         synchronize: true,
+        ssl: configService.get<string>('DATABASE_HOST') !== 'localhost' ? { rejectUnauthorized: false } : false,
       }),
     }),
     AuthModule,
