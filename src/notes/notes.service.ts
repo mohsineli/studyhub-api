@@ -44,6 +44,13 @@ export class NotesService {
     });
   }
 
+  async findMyNotes(uploaderId: number) {
+    return await this.noteRepository.find({
+      where: { uploader_id: uploaderId },
+      order: { created_at: 'DESC' },
+    });
+  }
+
   async findOne(id: number) {
     const note = await this.noteRepository.findOne({
       where: { id },

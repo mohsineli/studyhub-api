@@ -19,6 +19,11 @@ export class NotesController {
     return this.notesService.findAll(sort);
   }
 
+  @Get('my-notes')
+  findMyNotes(@Req() req: any) {
+    return this.notesService.findMyNotes(req.user.id);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.notesService.findOne(id);
