@@ -10,6 +10,7 @@ import { NotesModule } from './notes/notes.module';
 import { BookmarksModule } from './bookmarks/bookmarks.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ResourcesModule } from './resources/resources.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ResourcesModule } from './resources/resources.module';
     BookmarksModule,
     ReviewsModule,
     ResourcesModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

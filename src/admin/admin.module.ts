@@ -1,0 +1,17 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AdminService } from './admin.service';
+import { AdminController } from './admin.controller';
+import { User } from '../users/entities/user.entity';
+import { Note } from '../notes/entities/note.entity';
+import { Review } from '../reviews/entities/review.entity';
+import { Resource } from '../resources/entities/resource.entity';
+import { Session } from '../auth/entities/session.entity';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([User, Note, Review, Resource, Session])],
+  controllers: [AdminController],
+  providers: [AdminService],
+  exports: [AdminService],
+})
+export class AdminModule {}
