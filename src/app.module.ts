@@ -9,6 +9,7 @@ import { MailModule } from './mail/mail.module';
 import { NotesModule } from './notes/notes.module';
 import { BookmarksModule } from './bookmarks/bookmarks.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { ResourcesModule } from './resources/resources.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     NotesModule,
     BookmarksModule,
     ReviewsModule,
+    ResourcesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
