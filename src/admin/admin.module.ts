@@ -7,9 +7,10 @@ import { Note } from '../notes/entities/note.entity';
 import { Review } from '../reviews/entities/review.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { Session } from '../auth/entities/session.entity';
+import { Setting } from './entities/setting.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Note, Review, Resource, Session])],
+  imports: [TypeOrmModule.forFeature([User, Note, Review, Resource, Session, Setting])],
   controllers: [AdminController],
   providers: [AdminService],
   exports: [AdminService],

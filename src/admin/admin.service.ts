@@ -6,6 +6,7 @@ import { Note, NoteStatus } from '../notes/entities/note.entity';
 import { Review } from '../reviews/entities/review.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { Session } from '../auth/entities/session.entity';
+import { Setting } from './entities/setting.entity';
 
 @Injectable()
 export class AdminService {
@@ -15,6 +16,7 @@ export class AdminService {
     @InjectRepository(Review) private reviewRepository: Repository<Review>,
     @InjectRepository(Resource) private resourceRepository: Repository<Resource>,
     @InjectRepository(Session) private sessionRepository: Repository<Session>,
+    @InjectRepository(Setting) private settingRepository: Repository<Setting>,
   ) {}
 
   async getStats() {
@@ -63,5 +65,25 @@ export class AdminService {
       topUsers,
       notesPerDept
     };
+  }
+
+  async getSetting(key: string, defaultValue: string): Promise<string> {
+    const setting = await this.settingRepository.findOne({ where: { key } });
+    if (!setting) {
+      const newSetting = this.settingRepository.create({ key, value: defaultValue });
+      await this.settingRepository.save(newSetting);
+      return defaultValue;
+    }
+    return setting.value;
+  }
+
+  async setSetting(key: string, value: string): Promise<Setting> {
+    let setting = await this.settingRepository.findOne({ where: { key } });
+    if (!setting) {
+      setting = this.settingRepository.create({ key, value });
+    } else {
+      setting.value = value;
+    }
+    return await this.settingRepository.save(setting);
   }
 }

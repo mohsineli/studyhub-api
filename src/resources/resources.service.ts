@@ -4,18 +4,25 @@ import { Repository } from 'typeorm';
 import { Resource, ResourceStatus } from './entities/resource.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
+import { AdminService } from '../admin/admin.service';
 
 @Injectable()
 export class ResourcesService {
   constructor(
     @InjectRepository(Resource)
     private readonly resourceRepository: Repository<Resource>,
+    private readonly adminService: AdminService,
   ) {}
 
   async create(createResourceDto: CreateResourceDto, uploaderId: number): Promise<Resource> {
+    // Check global setting 'resource_upload_visibility'
+    const visibility = await this.adminService.getSetting('resource_upload_visibility', 'approved');
+    const status = visibility === 'pending' ? ResourceStatus.PENDING : ResourceStatus.APPROVED;
+
     const resource = this.resourceRepository.create({
       ...createResourceDto,
       uploader_id: uploaderId,
+      status,
     });
     return await this.resourceRepository.save(resource);
   }
