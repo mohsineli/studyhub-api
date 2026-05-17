@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Put, Delete, Body, Param, Req, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('reviews')
@@ -48,10 +49,10 @@ export class ReviewsController {
   @UseGuards(JwtAuthGuard)
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateReviewDto: CreateReviewDto,
+    @Body() updateCommentDto: UpdateCommentDto,
     @Req() req: any,
   ) {
-    return this.reviewsService.updateById(req.user.id, id, updateReviewDto);
+    return this.reviewsService.updateById(req.user.id, id, updateCommentDto);
   }
 
   @Delete(':id')

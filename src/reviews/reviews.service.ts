@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Review } from './entities/review.entity';
 import { Note } from '../notes/entities/note.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 
 @Injectable()
 export class ReviewsService {
@@ -59,18 +60,13 @@ export class ReviewsService {
     return review;
   }
 
-  async updateById(userId: number, reviewId: number, updateReviewDto: CreateReviewDto) {
+  async updateById(userId: number, reviewId: number, updateCommentDto: UpdateCommentDto) {
     const review = await this.reviewRepository.findOne({ where: { id: reviewId, user_id: userId } });
     if (!review) {
       throw new NotFoundException('Review not found or unauthorized');
     }
 
-    if (updateReviewDto.rating !== undefined) {
-      review.rating = updateReviewDto.rating;
-    }
-    if (updateReviewDto.comment !== undefined) {
-      review.comment = updateReviewDto.comment;
-    }
+    review.comment = updateCommentDto.comment;
 
     await this.reviewRepository.save(review);
     await this.updateNoteAverageRating(review.note_id);
