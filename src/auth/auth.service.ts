@@ -47,8 +47,8 @@ export class AuthService {
   setRefreshTokenCookie(res: Express.Response, refreshToken: string): void {
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true, // MUST be true for cross-domain
+      sameSite: 'none', // MUST be 'none' for Vercel -> Render cross-domain
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
   }
@@ -56,8 +56,8 @@ export class AuthService {
   clearRefreshTokenCookie(res: Express.Response): void {
     res.clearCookie('refresh_token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
     });
   }
 
