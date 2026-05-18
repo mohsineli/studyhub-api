@@ -7,10 +7,13 @@ export class MailService {
   private transporter: nodemailer.Transporter;
 
   constructor(private configService: ConfigService) {
+    const port = Number(this.configService.get<number>('MAIL_PORT')) || 587;
+    const isSecure = port === 465;
+
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('MAIL_HOST'),
-      port: this.configService.get<number>('MAIL_PORT'),
-      secure: true,
+      host: this.configService.get<string>('MAIL_HOST') || 'smtp.gmail.com',
+      port: port,
+      secure: isSecure,
       auth: {
         type: 'OAuth2',
         user: this.configService.get<string>('MAIL_USER'),
