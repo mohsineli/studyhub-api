@@ -46,10 +46,30 @@ export class AuthService {
   }
 
   private isProd(req?: Express.Request): boolean {
-    const origin = req?.get('origin') || '';
-    if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+    // 1. If running in dev/test environment
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
       return false;
     }
+
+    // 2. Check request parameters if request object exists
+    if (req) {
+      const origin = req.get('origin') || '';
+      if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+        return false;
+      }
+
+      const host = req.get('host') || '';
+      if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) {
+        return false;
+      }
+
+      const hostname = req.hostname || '';
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return false;
+      }
+    }
+
+    // 3. Fallback to the FRONTEND_URL env check
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || '';
     if (frontendUrl.startsWith('http://localhost') || frontendUrl.startsWith('http://127.0.0.1')) {
       return false;
@@ -200,7 +220,8 @@ export class AuthService {
         role: user.role,
         dept: user.dept,
         code: user.code,
-        profile_pic: user.profile_pic
+        profile_pic: user.profile_pic,
+        points: user.points
       },
     };
   }
