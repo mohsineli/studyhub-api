@@ -3,8 +3,10 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import * as dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
+import * as dns from 'dns';
 
 dotenv.config();
+dns.setDefaultResultOrder('ipv4first'); // Force IPv4 to prevent ENETUNREACH on Render
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
