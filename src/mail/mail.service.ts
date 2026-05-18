@@ -14,7 +14,6 @@ export class MailService {
       host: this.configService.get<string>('MAIL_HOST') || 'smtp.gmail.com',
       port: port,
       secure: isSecure,
-      family: 4, // Force IPv4 to prevent unreachable IPv6 errors (ENETUNREACH) on Render
       auth: {
         type: 'OAuth2',
         user: this.configService.get<string>('MAIL_USER'),
