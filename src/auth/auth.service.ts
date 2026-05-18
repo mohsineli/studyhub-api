@@ -220,7 +220,8 @@ export class AuthService {
         role: user.role,
         dept: user.dept,
         code: user.code,
-        profile_pic: user.profile_pic
+        profile_pic: user.profile_pic,
+        points: user.points
       },
     };
   }
