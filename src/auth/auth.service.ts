@@ -14,6 +14,7 @@ import { PendingUser } from './entities/pending-user.entity';
 import { MailService } from '../mail/mail.service';
 import { UserRole } from '../users/entities/user.entity';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -44,20 +45,34 @@ export class AuthService {
     });
   }
 
-  setRefreshTokenCookie(res: Express.Response, refreshToken: string): void {
+  private isProd(req?: Express.Request): boolean {
+    const origin = req?.get('origin') || '';
+    if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+      return false;
+    }
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || '';
+    if (frontendUrl.startsWith('http://localhost') || frontendUrl.startsWith('http://127.0.0.1')) {
+      return false;
+    }
+    return frontendUrl.startsWith('https');
+  }
+
+  setRefreshTokenCookie(res: Express.Response, refreshToken: string, req?: Express.Request): void {
+    const isProduction = this.isProd(req);
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
-      secure: true, // MUST be true for cross-domain
-      sameSite: 'none', // MUST be 'none' for Vercel -> Render cross-domain
+      secure: isProduction, // MUST be true for cross-domain production HTTPS, false for local HTTP
+      sameSite: isProduction ? 'none' : 'lax', // 'none' for production cross-domain, 'lax' for local
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
   }
 
-  clearRefreshTokenCookie(res: Express.Response): void {
+  clearRefreshTokenCookie(res: Express.Response, req?: Express.Request): void {
+    const isProduction = this.isProd(req);
     res.clearCookie('refresh_token', {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
     });
   }
 
@@ -158,7 +173,7 @@ export class AuthService {
     const access_token = this.generateAccessToken(payload);
     const refresh_token = this.generateRefreshToken(payload);
 
-    const hashedRefreshToken = await bcrypt.hash(refresh_token, 10);
+    const hashedRefreshToken = crypto.createHash('sha256').update(refresh_token).digest('hex');
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -174,7 +189,7 @@ export class AuthService {
     // Explicitly update last_active_at on login so it's instantly recorded
     await this.usersService.updateLastActive(user.id);
 
-    this.setRefreshTokenCookie(res, refresh_token);
+    this.setRefreshTokenCookie(res, refresh_token, req);
 
     return {
       access_token,
@@ -194,8 +209,9 @@ export class AuthService {
     const sessions = await this.sessionRepository.find({ where: { userId } });
     
     let currentSession: Session | null = null;
+    const hashedRawToken = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
     for (const session of sessions) {
-      if (await bcrypt.compare(rawRefreshToken, session.refresh_token)) {
+      if (session.refresh_token === hashedRawToken) {
         currentSession = session;
         break;
       }
@@ -212,34 +228,35 @@ export class AuthService {
     const new_access_token = this.generateAccessToken(payload);
     const new_refresh_token = this.generateRefreshToken(payload);
 
-    currentSession.refresh_token = await bcrypt.hash(new_refresh_token, 10);
+    currentSession.refresh_token = crypto.createHash('sha256').update(new_refresh_token).digest('hex');
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
     currentSession.expires_at = expiresAt;
     
     await this.sessionRepository.save(currentSession);
-    this.setRefreshTokenCookie(res, new_refresh_token);
+    this.setRefreshTokenCookie(res, new_refresh_token, req);
 
     return { access_token: new_access_token };
   }
 
-  async logout(userId: number, rawRefreshToken: string, res: Express.Response) {
+  async logout(userId: number, rawRefreshToken: string, res: Express.Response, req?: Express.Request) {
     const sessions = await this.sessionRepository.find({ where: { userId } });
     
+    const hashedRawToken = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
     for (const session of sessions) {
-      if (await bcrypt.compare(rawRefreshToken, session.refresh_token)) {
+      if (session.refresh_token === hashedRawToken) {
         await this.sessionRepository.remove(session);
         break;
       }
     }
 
-    this.clearRefreshTokenCookie(res);
+    this.clearRefreshTokenCookie(res, req);
     return { message: 'Logged out successfully from this device' };
   }
 
-  async logoutAll(userId: number, res: Express.Response) {
+  async logoutAll(userId: number, res: Express.Response, req?: Express.Request) {
     await this.sessionRepository.delete({ userId });
-    this.clearRefreshTokenCookie(res);
+    this.clearRefreshTokenCookie(res, req);
     return { message: 'Logged out successfully from all devices' };
   }
 

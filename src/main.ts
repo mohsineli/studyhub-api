@@ -12,9 +12,22 @@ async function bootstrap() {
   // Enable cookie parsing — required for reading refresh_token cookie
   app.use(cookieParser());
 
+  // Dynamic allowed origins for development and production
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://studyhubbd.vercel.app'
+  ];
+
   // Enable CORS with credentials so the frontend can send/receive cookies
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true, // Required for HttpOnly cookies
   });
 
