@@ -46,7 +46,7 @@ export class AuthController {
   @UseGuards(JwtRefreshAuthGuard) // Use Refresh Guard to get the token to clear the specific session
   async logout(@Req() req: Express.Request, @Res({ passthrough: true }) res: Express.Response) {
     const user = req.user as any;
-    return this.authService.logout(user.id, user.refreshToken, res);
+    return this.authService.logout(user.id, user.refreshToken, res, req);
   }
 
   @Post('logout-all')
@@ -54,7 +54,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async logoutAll(@Req() req: Express.Request, @Res({ passthrough: true }) res: Express.Response) {
     const user = req.user as any;
-    return this.authService.logoutAll(user.id, res);
+    return this.authService.logoutAll(user.id, res, req);
   }
 
   @Get('me')
