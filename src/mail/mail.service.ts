@@ -24,7 +24,7 @@ export class MailService {
   private async sendMail(to: string, subject: string, html: string, text: string) {
     try {
       await this.transporter.sendMail({
-        from: this.configService.get<string>('MAIL_FROM'),
+        from: this.configService.get<string>('MAIL_FROM') || this.configService.get<string>('MAIL_USER'),
         to,
         subject,
         html,
