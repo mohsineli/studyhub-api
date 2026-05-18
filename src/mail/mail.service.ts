@@ -1,41 +1,68 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import { google } from 'googleapis';
 
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter;
+  private oauth2Client;
+  private gmail;
 
   constructor(private configService: ConfigService) {
-    const port = Number(this.configService.get<number>('MAIL_PORT')) || 587;
-    const isSecure = port === 465;
+    this.oauth2Client = new google.auth.OAuth2(
+      this.configService.get<string>('MAIL_CLIENT_ID'),
+      this.configService.get<string>('MAIL_CLIENT_SECRET'),
+      'https://developers.google.com/oauthplayground' // This must match your authorized redirect URI
+    );
 
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('MAIL_HOST') || 'smtp.gmail.com',
-      port: port,
-      secure: isSecure,
-      auth: {
-        type: 'OAuth2',
-        user: this.configService.get<string>('MAIL_USER'),
-        clientId: this.configService.get<string>('MAIL_CLIENT_ID'),
-        clientSecret: this.configService.get<string>('MAIL_CLIENT_SECRET'),
-        refreshToken: this.configService.get<string>('MAIL_REFRESH_TOKEN'),
-      },
+    this.oauth2Client.setCredentials({
+      refresh_token: this.configService.get<string>('MAIL_REFRESH_TOKEN'),
     });
+
+    this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+  }
+
+  private makeMessage(to: string, from: string, subject: string, html: string, text: string) {
+    const str = [
+      `To: ${to}`,
+      `From: ${from}`,
+      `Subject: =?utf-8?B?${Buffer.from(subject).toString('base64')}?=`,
+      'MIME-Version: 1.0',
+      'Content-Type: multipart/alternative; boundary="boundary"',
+      '',
+      '--boundary',
+      'Content-Type: text/plain; charset="UTF-8"',
+      '',
+      text,
+      '',
+      '--boundary',
+      'Content-Type: text/html; charset="UTF-8"',
+      '',
+      html,
+      '',
+      '--boundary--',
+    ].join('\n');
+
+    return Buffer.from(str)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
   }
 
   private async sendMail(to: string, subject: string, html: string, text: string) {
     try {
-      await this.transporter.sendMail({
-        from: this.configService.get<string>('MAIL_FROM') || this.configService.get<string>('MAIL_USER'),
-        to,
-        subject,
-        html,
-        text,
+      const from = this.configService.get<string>('MAIL_FROM') || this.configService.get<string>('MAIL_USER') || 'studyhubteam.official@gmail.com';
+      const rawMessage = this.makeMessage(to, from, subject, html, text);
+
+      await this.gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: rawMessage,
+        },
       });
     } catch (error) {
       console.error('Mail Error:', error);
-      throw new InternalServerErrorException('Failed to send email');
+      throw new InternalServerErrorException('Failed to send email using Gmail API');
     }
   }
 
