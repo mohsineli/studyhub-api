@@ -12,10 +12,25 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     private usersService: UsersService,
   ) {
     super({
-      // Extract refresh token from the HttpOnly cookie
+      // Extract refresh token from HttpOnly cookie, Authorization header, or request body
       jwtFromRequest: ExtractJwt.fromExtractors([
         (request: Express.Request) => {
-          return request?.cookies?.refresh_token;
+          // 1. Try extracting from cookie
+          let token = request?.cookies?.refresh_token;
+          if (token) return token;
+          
+          // 2. Try extracting from Authorization header
+          const authHeader = request?.headers?.authorization;
+          if (authHeader && authHeader.startsWith('Bearer ')) {
+            return authHeader.substring(7);
+          }
+
+          // 3. Try extracting from request body
+          if (request?.body?.refresh_token) {
+            return request.body.refresh_token;
+          }
+
+          return null;
         },
       ]),
       ignoreExpiration: false,
@@ -25,7 +40,16 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
   }
 
   async validate(request: Express.Request, payload: any) {
-    const refreshToken = request.cookies?.refresh_token;
+    let refreshToken = request.cookies?.refresh_token;
+    if (!refreshToken) {
+      const authHeader = request.headers?.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        refreshToken = authHeader.substring(7);
+      }
+    }
+    if (!refreshToken) {
+      refreshToken = request.body?.refresh_token;
+    }
     
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
