@@ -74,6 +74,11 @@ export class ReviewsService {
   }
 
   async updateById(userId: number, reviewId: number, updateCommentDto: UpdateCommentDto) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user?.banned) {
+      throw new ForbiddenException('Banned users cannot update comments.');
+    }
+
     const review = await this.reviewRepository.findOne({ where: { id: reviewId, user_id: userId } });
     if (!review) {
       throw new NotFoundException('Review not found or unauthorized');
