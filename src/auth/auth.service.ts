@@ -213,6 +213,7 @@ export class AuthService {
 
     return {
       access_token,
+      refresh_token,
       user: { 
         id: user.id, 
         name: user.name, 
@@ -257,7 +258,10 @@ export class AuthService {
     await this.sessionRepository.save(currentSession);
     this.setRefreshTokenCookie(res, new_refresh_token, req);
 
-    return { access_token: new_access_token };
+    return { 
+      access_token: new_access_token,
+      refresh_token: new_refresh_token
+    };
   }
 
   async logout(userId: number, rawRefreshToken: string, res: Express.Response, req?: Express.Request) {
