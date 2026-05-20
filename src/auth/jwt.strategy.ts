@@ -22,9 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (!user) {
       throw new UnauthorizedException();
     }
-    if (user.banned) {
-      throw new ForbiddenException('Your account has been banned.');
-    }
+
     // Fire and forget updating last active timestamp
     this.usersService.updateLastActive(user.id).catch(err => console.error('Failed to update last_active_at', err));
     return { 
