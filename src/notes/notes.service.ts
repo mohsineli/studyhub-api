@@ -62,11 +62,18 @@ export class NotesService {
     });
   }
 
-  async findMyNotes(uploaderId: number) {
-    return await this.noteRepository.find({
+  async findMyNotes(uploaderId: number, page = 1, limit = 12) {
+    const take = limit;
+    const skip = (page - 1) * take;
+
+    const [data, total] = await this.noteRepository.findAndCount({
       where: { uploader_id: uploaderId },
       order: { created_at: 'DESC' },
+      take,
+      skip,
     });
+
+    return { data, total, page, limit };
   }
 
   async findOne(id: number) {

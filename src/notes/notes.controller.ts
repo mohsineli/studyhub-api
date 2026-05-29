@@ -28,8 +28,12 @@ export class NotesController {
   }
 
   @Get('my-notes')
-  findMyNotes(@Req() req: any) {
-    return this.notesService.findMyNotes(req.user.id);
+  findMyNotes(
+    @Req() req: any,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.notesService.findMyNotes(req.user.id, page, limit);
   }
 
   @Get('trending')
