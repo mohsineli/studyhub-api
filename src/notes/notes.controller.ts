@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Pars
 import { NotesService } from './notes.service';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
+import { CreateReactionDto } from './dto/create-reaction.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -66,6 +67,23 @@ export class NotesController {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.notesService.findOne(id);
+  }
+
+  @Post(':id/reactions')
+  toggleReaction(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateReactionDto,
+    @Req() req: any,
+  ) {
+    return this.notesService.toggleReaction(req.user.id, id, dto.reaction);
+  }
+
+  @Get(':id/reactions')
+  getReactions(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
+    return this.notesService.getReactionSummary(id, req.user.id);
   }
 
   @Patch(':id')

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { Note, NoteStatus } from './entities/note.entity';
+import { NoteReaction } from './entities/note-reaction.entity';
 import { User } from '../users/entities/user.entity';
 
 @Injectable()
@@ -11,6 +12,8 @@ export class NotesService {
   constructor(
     @InjectRepository(Note)
     private readonly noteRepository: Repository<Note>,
+    @InjectRepository(NoteReaction)
+    private readonly noteReactionRepository: Repository<NoteReaction>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
@@ -146,5 +149,49 @@ export class NotesService {
     }
 
     return note;
+  }
+
+  async toggleReaction(userId: number, noteId: number, reaction: string) {
+    await this.findOne(noteId);
+
+    const existing = await this.noteReactionRepository.findOne({
+      where: { note_id: noteId, user_id: userId },
+    });
+
+    if (existing) {
+      if (existing.reaction === reaction) {
+        await this.noteReactionRepository.remove(existing);
+      } else {
+        existing.reaction = reaction;
+        await this.noteReactionRepository.save(existing);
+      }
+    } else {
+      await this.noteReactionRepository.save({
+        note_id: noteId,
+        user_id: userId,
+        reaction,
+      });
+    }
+
+    return this.getReactionSummary(noteId, userId);
+  }
+
+  async getReactionSummary(noteId: number, userId?: number) {
+    const reactions = await this.noteReactionRepository.find({
+      where: { note_id: noteId },
+    });
+
+    const counts: Record<string, number> = {};
+    for (const r of reactions) {
+      counts[r.reaction] = (counts[r.reaction] || 0) + 1;
+    }
+
+    let userReaction: string | null = null;
+    if (userId) {
+      const userReact = reactions.find(r => r.user_id === userId);
+      userReaction = userReact?.reaction || null;
+    }
+
+    return { reactions: counts, userReaction };
   }
 }

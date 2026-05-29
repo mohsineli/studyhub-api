@@ -1,6 +1,7 @@
-import { Controller, Post, Get, Put, Delete, Body, Param, Req, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Param, Req, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -22,21 +23,37 @@ export class ReviewsController {
   @UseGuards(JwtAuthGuard)
   submitComment(
     @Param('noteId', ParseIntPipe) noteId: number,
-    @Body() body: { comment: string },
+    @Body() dto: CreateCommentDto,
     @Req() req: any,
   ) {
-    return this.reviewsService.submitComment(req.user.id, noteId, body.comment);
+    return this.reviewsService.submitComment(req.user.id, noteId, dto);
   }
 
   @Get('note/:noteId')
-  findByNote(@Param('noteId', ParseIntPipe) noteId: number) {
-    return this.reviewsService.findByNote(noteId);
+  findByNote(
+    @Param('noteId', ParseIntPipe) noteId: number,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.id;
+    return this.reviewsService.findByNote(noteId, userId);
   }
 
   @Get('note/:noteId/me')
   @UseGuards(JwtAuthGuard)
   findOneByUserAndNote(@Param('noteId', ParseIntPipe) noteId: number, @Req() req: any) {
     return this.reviewsService.findOneByUserAndNote(req.user.id, noteId);
+  }
+
+  @Post(':id/like')
+  @UseGuards(JwtAuthGuard)
+  like(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.reviewsService.toggleLike(req.user.id, id, 'like');
+  }
+
+  @Post(':id/dislike')
+  @UseGuards(JwtAuthGuard)
+  dislike(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.reviewsService.toggleLike(req.user.id, id, 'dislike');
   }
 
   @Delete('note/:noteId')
