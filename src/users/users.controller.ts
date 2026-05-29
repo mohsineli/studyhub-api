@@ -50,16 +50,27 @@ export class UsersController {
 
   // --- Admin user management ---
 
-  @Get('active')
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  getActiveUsersByDay(
-    @Req() req: any,
-    @Query('date') date?: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
-    return this.usersService.findActiveUsersByDay(req.user.role, date, page, limit);
-  }
+   @Get('active')
+   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+   getActiveUsersByDay(
+     @Req() req: any,
+     @Query('date') date?: string,
+     @Query('page') page?: number,
+     @Query('limit') limit?: number,
+   ) {
+     return this.usersService.findActiveUsersByDay(req.user.role, date, page, limit);
+   }
+
+   @Get('active/now')
+   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+   getCurrentlyActive(
+     @Req() req: any,
+     @Query('minutes') minutes?: number,
+     @Query('page') page?: number,
+     @Query('limit') limit?: number,
+   ) {
+     return this.usersService.findCurrentlyActiveUsers(req.user.role, minutes, page, limit);
+   }
 
   @Post(':id/ban')
   banUser(@Param('id', ParseIntPipe) id: number, @Req() req: any) {

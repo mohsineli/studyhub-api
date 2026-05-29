@@ -266,4 +266,26 @@ export class UsersService {
     const [users, total] = await query.getManyAndCount();
     return { data: users, total, page: page || 1, limit: take };
   }
+
+  async findCurrentlyActiveUsers(userRole: string, minutes: number = 5, page?: number, limit?: number) {
+    if (userRole !== UserRole.ADMIN) {
+      await this.adminService.enforcePermission(userRole, 'perm_view_active_users');
+    }
+    
+    // Calculate threshold: now minus X minutes
+    const threshold = new Date(Date.now() - minutes * 60 * 1000);
+    
+    const take = limit || 12;
+    const skip = page ? (page - 1) * take : 0;
+
+    const query = this.usersRepository.createQueryBuilder('user')
+      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
+      .where('user.last_active_at >= :threshold', { threshold })
+      .orderBy('user.last_active_at', 'DESC')
+      .take(take)
+      .skip(skip);
+
+    const [users, total] = await query.getManyAndCount();
+    return { data: users, total, page: page || 1, limit: take };
+  }
 }
