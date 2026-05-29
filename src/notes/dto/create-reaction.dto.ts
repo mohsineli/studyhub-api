@@ -1,6 +1,6 @@
 import { IsString, IsNotEmpty, IsIn } from 'class-validator';
 
-const REACTIONS = ['👍', '❤️', '😄', '😮', '😢'];
+const REACTIONS = ['helpful', 'brilliant', 'insightful', 'creative', 'lifesaver'];
 
 export class CreateReactionDto {
   @IsString()
