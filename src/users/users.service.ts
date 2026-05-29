@@ -236,7 +236,9 @@ export class UsersService {
   }
 
   async updateLastActive(id: number): Promise<void> {
-    await this.usersRepository.update(id, { last_active_at: new Date() });
+    // Use UTC timestamp to ensure consistency across timezones (Singapore server)
+    const utcNow = new Date();
+    await this.usersRepository.update(id, { last_active_at: utcNow });
   }
 
   async findActiveUsersByDay(userRole: string, dateString?: string, page?: number, limit?: number) {
@@ -272,8 +274,9 @@ export class UsersService {
       await this.adminService.enforcePermission(userRole, 'perm_view_active_users');
     }
     
-    // Calculate threshold: now minus X minutes
-    const threshold = new Date(Date.now() - minutes * 60 * 1000);
+    // Calculate threshold in UTC: now minus X minutes
+    // This ensures the comparison works correctly across all timezones
+    const threshold = new Date(new Date().getTime() - minutes * 60 * 1000);
     
     const take = limit || 12;
     const skip = page ? (page - 1) * take : 0;
