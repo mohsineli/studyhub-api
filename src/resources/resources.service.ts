@@ -89,7 +89,10 @@ export class ResourcesService {
     return await this.resourceRepository.save(resource);
   }
 
-  async updateStatus(id: number, status: ResourceStatus): Promise<Resource> {
+  async updateStatus(id: number, status: ResourceStatus, userRole?: string): Promise<Resource> {
+    if (userRole && userRole !== 'admin') {
+      await this.adminService.enforcePermission(userRole, 'perm_manage_resources');
+    }
     const resource = await this.findOne(id);
     resource.status = status;
     return await this.resourceRepository.save(resource);

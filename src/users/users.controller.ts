@@ -51,13 +51,14 @@ export class UsersController {
   // --- Admin user management ---
 
   @Get('active')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   getActiveUsersByDay(
+    @Req() req: any,
     @Query('date') date?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.usersService.findActiveUsersByDay(date, page, limit);
+    return this.usersService.findActiveUsersByDay(req.user.role, date, page, limit);
   }
 
   @Post(':id/ban')
@@ -85,6 +86,7 @@ export class UsersController {
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   findAll(
+    @Req() req: any,
     @Query('search') search?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
@@ -93,7 +95,7 @@ export class UsersController {
       search,
       limit: limit ? +limit : 20,
       offset: offset ? +offset : 0,
-    });
+    }, req.user.role);
   }
 
   @Get(':id')

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -34,9 +34,24 @@ export class AdminController {
   }
 
   @Post('settings')
-  @Roles(UserRole.ADMIN) // Only Admin can change settings
+  @Roles(UserRole.ADMIN)
   async setSetting(@Body() body: { key: string; value: string }) {
     const setting = await this.adminService.setSetting(body.key, body.value);
     return setting;
+  }
+
+  @Get('permissions')
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  async getPermissions() {
+    return this.adminService.getModeratorPermissions();
+  }
+
+  @Patch('permissions/:key')
+  @Roles(UserRole.ADMIN)
+  async setPermission(
+    @Param('key') key: string,
+    @Body() body: { value: string },
+  ) {
+    return this.adminService.setModeratorPermission(key, body.value);
   }
 }

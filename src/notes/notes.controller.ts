@@ -60,8 +60,9 @@ export class NotesController {
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: NoteStatus,
+    @Req() req: any,
   ) {
-    return this.notesService.updateStatus(id, status);
+    return this.notesService.updateStatus(id, status, req.user.role);
   }
 
   @Get(':id')

@@ -6,6 +6,7 @@ import { UpdateNoteDto } from './dto/update-note.dto';
 import { Note, NoteStatus } from './entities/note.entity';
 import { NoteReaction } from './entities/note-reaction.entity';
 import { User } from '../users/entities/user.entity';
+import { AdminService } from '../admin/admin.service';
 
 @Injectable()
 export class NotesService {
@@ -16,6 +17,7 @@ export class NotesService {
     private readonly noteReactionRepository: Repository<NoteReaction>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly adminService: AdminService,
   ) {}
 
   async create(createNoteDto: CreateNoteDto, uploaderId: number) {
@@ -138,7 +140,10 @@ export class NotesService {
     return { data, total, page: page || 1, limit: take };
   }
 
-  async updateStatus(id: number, status: NoteStatus) {
+  async updateStatus(id: number, status: NoteStatus, userRole?: string) {
+    if (userRole && userRole !== 'admin') {
+      await this.adminService.enforcePermission(userRole, 'perm_manage_notes');
+    }
     const note = await this.findOne(id);
     note.status = status;
     await this.noteRepository.save(note);

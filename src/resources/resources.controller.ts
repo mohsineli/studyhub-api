@@ -74,8 +74,9 @@ export class ResourcesController {
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: ResourceStatus,
+    @Req() req: any,
   ) {
-    return this.resourcesService.updateStatus(id, status);
+    return this.resourcesService.updateStatus(id, status, req.user.role);
   }
 
   // Owner, admin, or moderator can edit a resource

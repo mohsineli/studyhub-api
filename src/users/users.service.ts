@@ -6,12 +6,14 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserRole } from './entities/user.entity';
 import { NoteStatus } from '../notes/entities/note.entity';
+import { AdminService } from '../admin/admin.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private readonly adminService: AdminService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -27,7 +29,10 @@ export class UsersService {
     return await this.usersRepository.save(user);
   }
 
-  async findAll(options?: { search?: string; limit?: number; offset?: number }): Promise<{ users: User[]; total: number }> {
+  async findAll(options?: { search?: string; limit?: number; offset?: number }, userRole?: string): Promise<{ users: User[]; total: number }> {
+    if (userRole && userRole !== UserRole.ADMIN) {
+      await this.adminService.enforcePermission(userRole, 'perm_view_users');
+    }
     const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
       .orderBy('user.created_at', 'DESC');
@@ -234,7 +239,10 @@ export class UsersService {
     await this.usersRepository.update(id, { last_active_at: new Date() });
   }
 
-  async findActiveUsersByDay(dateString?: string, page?: number, limit?: number) {
+  async findActiveUsersByDay(userRole: string, dateString?: string, page?: number, limit?: number) {
+    if (userRole !== UserRole.ADMIN) {
+      await this.adminService.enforcePermission(userRole, 'perm_view_active_users');
+    }
     let dateStr = dateString;
     if (!dateStr) {
       const d = new Date();

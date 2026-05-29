@@ -1,12 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { Note, NoteStatus } from '../notes/entities/note.entity';
 import { Review } from '../reviews/entities/review.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { Session } from '../auth/entities/session.entity';
 import { Setting } from './entities/setting.entity';
+
+export const MODERATOR_PERMISSIONS = [
+  { key: 'perm_view_active_users', label: 'Active Users', description: 'View active user statistics' },
+  { key: 'perm_manage_notes', label: 'Notes Moderation', description: 'Approve or reject note submissions' },
+  { key: 'perm_manage_resources', label: 'Resources Moderation', description: 'Approve or reject resource submissions' },
+  { key: 'perm_view_users', label: 'User Directory', description: 'View registered users directory' },
+  { key: 'perm_view_resources', label: 'Library Resources', description: 'View library resources list' },
+  { key: 'perm_manage_trending', label: 'Trending Content', description: 'View and manage trending content' },
+];
 
 @Injectable()
 export class AdminService {
@@ -85,5 +94,38 @@ export class AdminService {
       setting.value = value;
     }
     return await this.settingRepository.save(setting);
+  }
+
+  async getModeratorPermissions(): Promise<{ key: string; label: string; description: string; value: string }[]> {
+    const results: { key: string; label: string; description: string; value: string }[] = [];
+    for (const perm of MODERATOR_PERMISSIONS) {
+      const value = await this.getSetting(perm.key, 'admin');
+      results.push({ ...perm, value });
+    }
+    return results;
+  }
+
+  async setModeratorPermission(key: string, value: string): Promise<{ key: string; value: string }> {
+    const perm = MODERATOR_PERMISSIONS.find(p => p.key === key);
+    if (!perm) throw new NotFoundException(`Permission "${key}" not found`);
+    if (!['admin', 'admin+moderator'].includes(value)) {
+      throw new BadRequestException('Value must be "admin" or "admin+moderator"');
+    }
+    await this.setSetting(key, value);
+    return { key, value };
+  }
+
+  async hasPermission(userRole: string, permissionKey: string): Promise<boolean> {
+    if (userRole === UserRole.ADMIN) return true;
+    if (userRole === UserRole.MODERATOR) {
+      const value = await this.getSetting(permissionKey, 'admin');
+      return value === 'admin+moderator';
+    }
+    return false;
+  }
+
+  async enforcePermission(userRole: string, permissionKey: string): Promise<void> {
+    const permitted = await this.hasPermission(userRole, permissionKey);
+    if (!permitted) throw new ForbiddenException('Access denied. You do not have the required permission.');
   }
 }
