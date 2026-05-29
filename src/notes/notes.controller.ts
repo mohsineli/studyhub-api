@@ -19,8 +19,12 @@ export class NotesController {
   }
 
   @Get()
-  findAll(@Query('sort') sort?: string) {
-    return this.notesService.findAll(sort);
+  findAll(
+    @Query('sort') sort?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.notesService.findAll(sort, page, limit);
   }
 
   @Get('my-notes')
@@ -38,8 +42,11 @@ export class NotesController {
   @Get('pending')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  findPending() {
-    return this.notesService.findPending();
+  findPending(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.notesService.findPending(page, limit);
   }
 
   @Patch(':id/status')

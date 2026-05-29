@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserRole } from './entities/user.entity';
+import { NoteStatus } from '../notes/entities/note.entity';
 
 @Injectable()
 export class UsersService {
@@ -46,9 +47,12 @@ export class UsersService {
     return { users, total };
   }
 
-  async getLeaderboard(period?: string): Promise<User[]> {
+  async getLeaderboard(period?: string): Promise<(User & { noteCount: number })[]> {
     const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
+      .loadRelationCountAndMap('user.noteCount', 'user.notes', 'note', qb =>
+        qb.andWhere('note.status = :status', { status: NoteStatus.APPROVED })
+      )
       .orderBy('user.points', 'DESC')
       .take(30);
 
@@ -57,10 +61,10 @@ export class UsersService {
       if (period === 'previous') {
         targetDate.setMonth(targetDate.getMonth() - 1);
       }
-      
+
       const year = targetDate.getFullYear();
       const month = targetDate.getMonth() + 1; // JS months are 0-11
-      
+
       // Using EXTRACT for PostgreSQL month/year filtering
       query.andWhere('EXTRACT(MONTH FROM user.created_at) = :month', { month })
            .andWhere('EXTRACT(YEAR FROM user.created_at) = :year', { year });
@@ -181,7 +185,7 @@ export class UsersService {
     await this.usersRepository.update(id, { last_active_at: new Date() });
   }
 
-  async findActiveUsersByDay(dateString?: string): Promise<{ users: User[]; total: number }> {
+  async findActiveUsersByDay(dateString?: string, page?: number, limit?: number) {
     let dateStr = dateString;
     if (!dateStr) {
       const d = new Date();
@@ -191,13 +195,18 @@ export class UsersService {
       dateStr = `${year}-${month}-${day}`;
     }
 
+    const take = limit || 12;
+    const skip = page ? (page - 1) * take : 0;
+
     // Use PostgreSQL TO_CHAR to match the YYYY-MM-DD string exactly
     const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
       .where("TO_CHAR(user.last_active_at, 'YYYY-MM-DD') = :dateStr", { dateStr })
-      .orderBy('user.last_active_at', 'DESC');
+      .orderBy('user.last_active_at', 'DESC')
+      .take(take)
+      .skip(skip);
 
     const [users, total] = await query.getManyAndCount();
-    return { users, total };
+    return { data: users, total, page: page || 1, limit: take };
   }
 }

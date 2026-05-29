@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { ResourcesService } from './resources.service';
 import { CreateResourceDto } from './dto/create-resource.dto';
@@ -26,8 +27,11 @@ export class ResourcesController {
 
   // Any authenticated user can browse approved resources
   @Get()
-  findAll() {
-    return this.resourcesService.findAll();
+  findAll(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.resourcesService.findAll(page, limit);
   }
 
   // Admin and moderator can see trending resources
@@ -42,8 +46,11 @@ export class ResourcesController {
   @Get('admin/pending')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  findPending() {
-    return this.resourcesService.findPending();
+  findPending(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.resourcesService.findPending(page, limit);
   }
 
   // Any authenticated user can view a single resource
