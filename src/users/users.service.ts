@@ -84,7 +84,11 @@ export class UsersService {
   async getPublicProfile(id: number): Promise<any> {
     const user = await this.usersRepository
       .createQueryBuilder('user')
-      .select(['user.id', 'user.name', 'user.profile_pic', 'user.dept', 'user.points', 'user.created_at'])
+      .select([
+        'user.id', 'user.name', 'user.profile_pic', 'user.dept', 'user.code',
+        'user.points', 'user.created_at', 'user.role',
+        'user.github', 'user.linkedin', 'user.instagram', 'user.facebook',
+      ])
       .loadRelationCountAndMap('user.noteCount', 'user.notes', 'note', qb =>
         qb.andWhere('note.status = :status', { status: NoteStatus.APPROVED })
       )
@@ -95,14 +99,27 @@ export class UsersService {
       throw new NotFoundException(`User not found`);
     }
 
+    // Compute leaderboard rank: position of this user among all users sorted by points DESC
+    const rank = await this.usersRepository
+      .createQueryBuilder('user')
+      .where('user.points > :points', { points: user.points })
+      .getCount();
+
     return {
       id: user.id,
       name: user.name,
       profile_pic: user.profile_pic,
       dept: user.dept,
+      code: user.code,
+      role: user.role,
       points: user.points,
       created_at: user.created_at,
       noteCount: (user as any).noteCount || 0,
+      rank: rank + 1,
+      github: user.github || null,
+      linkedin: user.linkedin || null,
+      instagram: user.instagram || null,
+      facebook: user.facebook || null,
     };
   }
 
@@ -160,6 +177,13 @@ export class UsersService {
       user.profile_pic = updateProfileDto.profile_pic;
       changed = true;
     }
+
+    ['github', 'linkedin', 'instagram', 'facebook'].forEach(field => {
+      if (updateProfileDto[field] !== undefined && updateProfileDto[field] !== user[field]) {
+        user[field] = updateProfileDto[field];
+        changed = true;
+      }
+    });
 
     if (!changed) {
       throw new BadRequestException('No changes detected.');

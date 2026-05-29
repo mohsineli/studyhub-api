@@ -47,6 +47,18 @@ export class User {
   @Column({ type: 'text', nullable: true })
   profile_pic: string;
 
+  @Column({ length: 255, nullable: true })
+  github: string;
+
+  @Column({ length: 255, nullable: true })
+  linkedin: string;
+
+  @Column({ length: 255, nullable: true })
+  instagram: string;
+
+  @Column({ length: 255, nullable: true })
+  facebook: string;
+
   @Column({ length: 6, nullable: true })
   otp: string;
 
