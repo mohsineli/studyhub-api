@@ -46,8 +46,12 @@ export class UsersController {
 
   @Get('active')
   @Roles(UserRole.ADMIN)
-  getActiveUsersByDay(@Query('date') date?: string) {
-    return this.usersService.findActiveUsersByDay(date);
+  getActiveUsersByDay(
+    @Query('date') date?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.usersService.findActiveUsersByDay(date, page, limit);
   }
 
   @Post(':id/ban')

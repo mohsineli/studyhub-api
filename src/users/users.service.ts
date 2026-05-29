@@ -181,7 +181,7 @@ export class UsersService {
     await this.usersRepository.update(id, { last_active_at: new Date() });
   }
 
-  async findActiveUsersByDay(dateString?: string): Promise<{ users: User[]; total: number }> {
+  async findActiveUsersByDay(dateString?: string, page?: number, limit?: number) {
     let dateStr = dateString;
     if (!dateStr) {
       const d = new Date();
@@ -191,13 +191,18 @@ export class UsersService {
       dateStr = `${year}-${month}-${day}`;
     }
 
+    const take = limit || 12;
+    const skip = page ? (page - 1) * take : 0;
+
     // Use PostgreSQL TO_CHAR to match the YYYY-MM-DD string exactly
     const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
       .where("TO_CHAR(user.last_active_at, 'YYYY-MM-DD') = :dateStr", { dateStr })
-      .orderBy('user.last_active_at', 'DESC');
+      .orderBy('user.last_active_at', 'DESC')
+      .take(take)
+      .skip(skip);
 
     const [users, total] = await query.getManyAndCount();
-    return { users, total };
+    return { data: users, total, page: page || 1, limit: take };
   }
 }

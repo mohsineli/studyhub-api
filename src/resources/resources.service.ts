@@ -27,21 +27,34 @@ export class ResourcesService {
     return await this.resourceRepository.save(resource);
   }
 
-  async findAll(status?: string): Promise<Resource[]> {
-    const where: any = { status: ResourceStatus.APPROVED };
-    return await this.resourceRepository.find({
-      where,
+  async findAll(page?: number, limit?: number) {
+    const take = limit || 12;
+    const skip = page ? (page - 1) * take : 0;
+
+    const [data, total] = await this.resourceRepository.findAndCount({
+      where: { status: ResourceStatus.APPROVED },
       relations: ['uploader'],
       order: { created_at: 'DESC' },
+      take,
+      skip,
     });
+
+    return { data, total, page: page || 1, limit: take };
   }
 
-  async findPending(): Promise<Resource[]> {
-    return await this.resourceRepository.find({
+  async findPending(page?: number, limit?: number) {
+    const take = limit || 12;
+    const skip = page ? (page - 1) * take : 0;
+
+    const [data, total] = await this.resourceRepository.findAndCount({
       where: { status: ResourceStatus.PENDING },
       relations: ['uploader'],
       order: { created_at: 'DESC' },
+      take,
+      skip,
     });
+
+    return { data, total, page: page || 1, limit: take };
   }
 
   async findTrending(): Promise<Resource[]> {

@@ -113,12 +113,19 @@ export class NotesService {
     return await this.noteRepository.remove(note);
   }
 
-  async findPending() {
-    return await this.noteRepository.find({
+  async findPending(page?: number, limit?: number) {
+    const take = limit || 12;
+    const skip = page ? (page - 1) * take : 0;
+
+    const [data, total] = await this.noteRepository.findAndCount({
       where: { status: NoteStatus.PENDING },
       relations: ['uploader'],
       order: { created_at: 'DESC' },
+      take,
+      skip,
     });
+
+    return { data, total, page: page || 1, limit: take };
   }
 
   async updateStatus(id: number, status: NoteStatus) {
