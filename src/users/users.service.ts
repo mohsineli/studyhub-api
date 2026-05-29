@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserRole } from './entities/user.entity';
+import { NoteStatus } from '../notes/entities/note.entity';
 
 @Injectable()
 export class UsersService {
@@ -46,9 +47,12 @@ export class UsersService {
     return { users, total };
   }
 
-  async getLeaderboard(period?: string): Promise<User[]> {
+  async getLeaderboard(period?: string): Promise<(User & { noteCount: number })[]> {
     const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
+      .loadRelationCountAndMap('user.noteCount', 'user.notes', 'note', qb =>
+        qb.andWhere('note.status = :status', { status: NoteStatus.APPROVED })
+      )
       .orderBy('user.points', 'DESC')
       .take(30);
 
@@ -57,10 +61,10 @@ export class UsersService {
       if (period === 'previous') {
         targetDate.setMonth(targetDate.getMonth() - 1);
       }
-      
+
       const year = targetDate.getFullYear();
       const month = targetDate.getMonth() + 1; // JS months are 0-11
-      
+
       // Using EXTRACT for PostgreSQL month/year filtering
       query.andWhere('EXTRACT(MONTH FROM user.created_at) = :month', { month })
            .andWhere('EXTRACT(YEAR FROM user.created_at) = :year', { year });
