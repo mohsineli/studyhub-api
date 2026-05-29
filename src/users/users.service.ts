@@ -70,7 +70,7 @@ export class UsersService {
            .andWhere('EXTRACT(YEAR FROM user.created_at) = :year', { year });
     }
 
-    return await query.getMany();
+    return await query.getMany() as (User & { noteCount: number })[];
   }
 
   async findOne(id: number): Promise<User> {
