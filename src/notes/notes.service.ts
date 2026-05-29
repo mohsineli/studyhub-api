@@ -23,7 +23,7 @@ export class NotesService {
     return await this.noteRepository.save(note);
   }
 
-  async findAll(sort?: string) {
+  async findAll(sort?: string, page?: number, limit?: number) {
     const order: any = {};
     
     switch (sort) {
@@ -37,11 +37,18 @@ export class NotesService {
         order.created_at = 'DESC';
     }
 
-    return await this.noteRepository.find({
+    const take = limit || 12;
+    const skip = page ? (page - 1) * take : 0;
+
+    const [data, total] = await this.noteRepository.findAndCount({
       where: { status: NoteStatus.APPROVED },
       relations: ['uploader'],
       order,
+      take,
+      skip,
     });
+
+    return { data, total, page: page || 1, limit: take };
   }
 
   async findTrending(): Promise<Note[]> {
