@@ -81,6 +81,31 @@ export class UsersService {
     return user;
   }
 
+  async getPublicProfile(id: number): Promise<any> {
+    const user = await this.usersRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.name', 'user.profile_pic', 'user.dept', 'user.points', 'user.created_at'])
+      .loadRelationCountAndMap('user.noteCount', 'user.notes', 'note', qb =>
+        qb.andWhere('note.status = :status', { status: NoteStatus.APPROVED })
+      )
+      .where('user.id = :id', { id })
+      .getOne();
+
+    if (!user) {
+      throw new NotFoundException(`User not found`);
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      profile_pic: user.profile_pic,
+      dept: user.dept,
+      points: user.points,
+      created_at: user.created_at,
+      noteCount: (user as any).noteCount || 0,
+    };
+  }
+
   async findByEmail(email: string): Promise<User | null> {
     return await this.usersRepository.findOne({ where: { email } });
   }

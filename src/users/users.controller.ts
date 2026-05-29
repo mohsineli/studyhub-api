@@ -42,6 +42,12 @@ export class UsersController {
     return this.usersService.getLeaderboard(period);
   }
 
+  @Get(':id/public-profile')
+  @Roles(UserRole.STUDENT, UserRole.ADMIN, UserRole.MODERATOR)
+  getPublicProfile(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.getPublicProfile(id);
+  }
+
   // --- Admin user management ---
 
   @Get('active')
