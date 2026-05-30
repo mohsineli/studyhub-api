@@ -59,6 +59,9 @@ export class User {
   @Column({ length: 255, nullable: true })
   facebook: string;
 
+  @Column({ length: 10, default: 'dark' })
+  preferred_theme: string;
+
   @Column({ length: 6, nullable: true })
   otp: string;
 
