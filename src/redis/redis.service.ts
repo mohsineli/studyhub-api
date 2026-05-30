@@ -12,7 +12,7 @@ export class RedisService implements OnModuleDestroy {
       ? new Redis(url, {
           lazyConnect: true,
           enableAutoPipelining: true,
-          retryStrategy: (times) => Math.min(times * 100, 5000),
+          retryStrategy: (times) => times > 10 ? null : Math.min(times * 100, 5000),
         })
       : new Redis({
           host: this.configService.get('REDIS_HOST', 'localhost'),
@@ -20,10 +20,10 @@ export class RedisService implements OnModuleDestroy {
           password: this.configService.get('REDIS_PASSWORD'),
           lazyConnect: true,
           enableAutoPipelining: true,
-          retryStrategy: (times) => Math.min(times * 100, 5000),
+          retryStrategy: (times) => times > 10 ? null : Math.min(times * 100, 5000),
         });
 
-    this.client.on('error', (err) => console.error('[Redis] Connection error:', err));
+    this.client.on('error', () => { /* suppressed — graceful degradation */ });
   }
 
   async onModuleInit(): Promise<void> {

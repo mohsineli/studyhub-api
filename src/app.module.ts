@@ -58,6 +58,8 @@ import { ThrottleConfigModule } from './redis/throttle-config.module';
         redis: {
           host: configService.get<string>('REDIS_HOST', 'localhost'),
           port: configService.get<number>('REDIS_PORT', 6379),
+          maxRetriesPerRequest: 3,
+          retryStrategy: (times: number) => times > 5 ? null : Math.min(times * 200, 3000),
         },
       }),
     }),
