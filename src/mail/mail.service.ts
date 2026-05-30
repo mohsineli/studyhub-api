@@ -1,17 +1,22 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
+import type { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bull';
 
 @Injectable()
 export class MailService {
   private oauth2Client;
   private gmail;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    @InjectQueue('mail') private mailQueue: Queue,
+  ) {
     this.oauth2Client = new google.auth.OAuth2(
       this.configService.get<string>('MAIL_CLIENT_ID'),
       this.configService.get<string>('MAIL_CLIENT_SECRET'),
-      'https://developers.google.com/oauthplayground' // This must match your authorized redirect URI
+      'https://developers.google.com/oauthplayground'
     );
 
     this.oauth2Client.setCredentials({
@@ -49,16 +54,33 @@ export class MailService {
       .replace(/=+$/, '');
   }
 
-  private async sendMail(to: string, subject: string, html: string, text: string) {
-    try {
-      const from = this.configService.get<string>('MAIL_FROM') || this.configService.get<string>('MAIL_USER') || 'studyhubteam.official@gmail.com';
-      const rawMessage = this.makeMessage(to, from, subject, html, text);
+  async sendMailDirect(
+    to: string,
+    subject: string,
+    name: string,
+    otp: string,
+    type: 'verify' | 'reset',
+  ) {
+    const from = this.configService.get<string>('MAIL_FROM') || this.configService.get<string>('MAIL_USER') || 'studyhubteam.official@gmail.com';
+    const otpBoxColor = type === 'verify' ? '#28a745' : '#dc3545';
+    const headerText = type === 'verify' ? '🔑 OTP Verification' : '🔑 Password Reset OTP';
+    const messageBody = type === 'verify'
+      ? `<p style="color: #333; font-size: 16px;">Hello <b>${name}</b>,</p>
+         <p>Thank you for registering with <b>StudyHub</b>. Use the OTP below to verify your email:</p>`
+      : `<p style="color: #333; font-size: 16px;">Hello <b>${name}</b>,</p>
+         <p>You requested a password reset for <b>StudyHub</b>. Please use the OTP below to reset your password:</p>`;
 
+    const html = this.getHtmlTemplate(headerText, messageBody, otp, otpBoxColor);
+    const text = type === 'verify'
+      ? `Hello ${name},\n\nThank you for registering with StudyHub. Your OTP code is: ${otp}\n\nThis OTP is valid for 10 minutes.`
+      : `Hello ${name},\n\nYou requested a password reset for StudyHub. Your OTP code is: ${otp}\n\nThis OTP is valid for 10 minutes.`;
+
+    const rawMessage = this.makeMessage(to, from, subject, html, text);
+
+    try {
       await this.gmail.users.messages.send({
         userId: 'me',
-        requestBody: {
-          raw: rawMessage,
-        },
+        requestBody: { raw: rawMessage },
       });
     } catch (error) {
       console.error('Mail Error:', error);
@@ -67,29 +89,11 @@ export class MailService {
   }
 
   async sendVerificationEmail(to: string, name: string, otp: string) {
-    const subject = 'StudyHub - OTP Verification';
-    const otpBoxColor = '#28a745'; // green
-    const headerText = '🔑 OTP Verification';
-    const messageBody = `<p style="color: #333; font-size: 16px;">Hello <b>${name}</b>,</p>
-                         <p>Thank you for registering with <b>StudyHub</b>. Use the OTP below to verify your email:</p>`;
-
-    const html = this.getHtmlTemplate(headerText, messageBody, otp, otpBoxColor);
-    const text = `Hello ${name},\n\nThank you for registering with StudyHub. Your OTP code is: ${otp}\n\nThis OTP is valid for 10 minutes.`;
-
-    await this.sendMail(to, subject, html, text);
+    await this.mailQueue.add('send-verification', { to, name, otp });
   }
 
   async sendPasswordResetEmail(to: string, name: string, otp: string) {
-    const subject = 'StudyHub - Password Reset OTP';
-    const otpBoxColor = '#dc3545'; // red
-    const headerText = '🔑 Password Reset OTP';
-    const messageBody = `<p style="color: #333; font-size: 16px;">Hello <b>${name}</b>,</p>
-                         <p>You requested a password reset for <b>StudyHub</b>. Please use the OTP below to reset your password:</p>`;
-
-    const html = this.getHtmlTemplate(headerText, messageBody, otp, otpBoxColor);
-    const text = `Hello ${name},\n\nYou requested a password reset for StudyHub. Your OTP code is: ${otp}\n\nThis OTP is valid for 10 minutes.`;
-
-    await this.sendMail(to, subject, html, text);
+    await this.mailQueue.add('send-password-reset', { to, name, otp });
   }
 
   private getHtmlTemplate(headerText: string, messageBody: string, otp: string, otpBoxColor: string): string {
