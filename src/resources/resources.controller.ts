@@ -56,7 +56,7 @@ export class ResourcesController {
   // Any authenticated user can view a single resource
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.resourcesService.findOne(id);
+    return this.resourcesService.findOneCached(id);
   }
 
   // Admin and moderator can upload resources

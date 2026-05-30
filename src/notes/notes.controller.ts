@@ -67,7 +67,7 @@ export class NotesController {
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.notesService.findOne(id);
+    return this.notesService.findOneCached(id);
   }
 
   @Post(':id/reactions')

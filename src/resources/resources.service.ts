@@ -90,6 +90,10 @@ export class ResourcesService {
     return resource;
   }
 
+  async findOneCached(id: number): Promise<Resource> {
+    return this.redisService.wrap(`resources:${id}`, 120, () => this.findOne(id));
+  }
+
   async update(id: number, updateResourceDto: UpdateResourceDto, user: any): Promise<Resource> {
     const resource = await this.findOne(id);
     if (resource.uploader_id !== user.id && user.role !== 'admin' && user.role !== 'moderator') {

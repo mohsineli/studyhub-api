@@ -78,17 +78,20 @@ export class NotesService {
   }
 
   async findMyNotes(uploaderId: number, page = 1, limit = 12) {
-    const take = limit;
-    const skip = (page - 1) * take;
+    const cacheKey = `notes:my:${uploaderId}:${page}:${limit}`;
+    return this.redisService.wrap(cacheKey, 30, async () => {
+      const take = limit;
+      const skip = (page - 1) * take;
 
-    const [data, total] = await this.noteRepository.findAndCount({
-      where: { uploader_id: uploaderId },
-      order: { created_at: 'DESC' },
-      take,
-      skip,
+      const [data, total] = await this.noteRepository.findAndCount({
+        where: { uploader_id: uploaderId },
+        order: { created_at: 'DESC' },
+        take,
+        skip,
+      });
+
+      return { data, total, page, limit };
     });
-
-    return { data, total, page, limit };
   }
 
   async findOne(id: number) {
@@ -100,6 +103,10 @@ export class NotesService {
       throw new NotFoundException(`Note with ID ${id} not found`);
     }
     return note;
+  }
+
+  async findOneCached(id: number) {
+    return this.redisService.wrap(`notes:${id}`, 120, () => this.findOne(id));
   }
 
   async update(id: number, updateNoteDto: UpdateNoteDto, user: any) {

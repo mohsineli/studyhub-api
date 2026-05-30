@@ -49,6 +49,12 @@ export class AdminService {
   }
 
   async getActiveUsers() {
+    return this.redisService.wrap('admin:active-users', 120, async () => {
+      return this.fetchActiveUsers();
+    });
+  }
+
+  private async fetchActiveUsers() {
     // Group sessions by Date(created_at) and count distinct userIds
     const rawData = await this.sessionRepository.createQueryBuilder('session')
       .select('DATE(session.created_at)', 'date')
@@ -61,33 +67,34 @@ export class AdminService {
   }
 
   async getReport() {
-    const topUsers = await this.userRepository.find({
-      order: { points: 'DESC' },
-      take: 10,
-      select: ['id', 'name', 'email', 'points', 'dept']
+    return this.redisService.wrap('admin:report', 300, async () => {
+      const topUsers = await this.userRepository.find({
+        order: { points: 'DESC' },
+        take: 10,
+        select: ['id', 'name', 'email', 'points', 'dept']
+      });
+
+      const notesPerDept = await this.noteRepository.createQueryBuilder('note')
+          .select('note.dept', 'dept')
+          .addSelect('COUNT(note.id)', 'count')
+          .where('note.status = :status', { status: NoteStatus.APPROVED })
+          .groupBy('note.dept')
+          .getRawMany();
+
+      return { topUsers, notesPerDept };
     });
-
-    const notesPerDept = await this.noteRepository.createQueryBuilder('note')
-        .select('note.dept', 'dept')
-        .addSelect('COUNT(note.id)', 'count')
-        .where('note.status = :status', { status: NoteStatus.APPROVED })
-        .groupBy('note.dept')
-        .getRawMany();
-
-    return {
-      topUsers,
-      notesPerDept
-    };
   }
 
   async getSetting(key: string, defaultValue: string): Promise<string> {
-    const setting = await this.settingRepository.findOne({ where: { key } });
-    if (!setting) {
-      const newSetting = this.settingRepository.create({ key, value: defaultValue });
-      await this.settingRepository.save(newSetting);
-      return defaultValue;
-    }
-    return setting.value;
+    return this.redisService.wrap(`admin:setting:${key}`, 60, async () => {
+      const setting = await this.settingRepository.findOne({ where: { key } });
+      if (!setting) {
+        const newSetting = this.settingRepository.create({ key, value: defaultValue });
+        await this.settingRepository.save(newSetting);
+        return defaultValue;
+      }
+      return setting.value;
+    });
   }
 
   async setSetting(key: string, value: string): Promise<Setting> {
@@ -97,16 +104,20 @@ export class AdminService {
     } else {
       setting.value = value;
     }
-    return await this.settingRepository.save(setting);
+    const saved = await this.settingRepository.save(setting);
+    await this.redisService.delByPattern(`admin:setting:${key}`);
+    return saved;
   }
 
   async getModeratorPermissions(): Promise<{ key: string; label: string; description: string; value: string }[]> {
-    const results: { key: string; label: string; description: string; value: string }[] = [];
-    for (const perm of MODERATOR_PERMISSIONS) {
-      const value = await this.getSetting(perm.key, 'admin');
-      results.push({ ...perm, value });
-    }
-    return results;
+    return this.redisService.wrap('admin:permissions', 60, async () => {
+      const results: { key: string; label: string; description: string; value: string }[] = [];
+      for (const perm of MODERATOR_PERMISSIONS) {
+        const value = await this.getSetting(perm.key, 'admin');
+        results.push({ ...perm, value });
+      }
+      return results;
+    });
   }
 
   async setModeratorPermission(key: string, value: string): Promise<{ key: string; value: string }> {
@@ -116,6 +127,7 @@ export class AdminService {
       throw new BadRequestException('Value must be "admin" or "admin+moderator"');
     }
     await this.setSetting(key, value);
+    await this.redisService.delByPattern('admin:permissions');
     return { key, value };
   }
 

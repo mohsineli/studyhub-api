@@ -92,6 +92,12 @@ export class UsersService {
   }
 
   async getPublicProfile(id: number): Promise<any> {
+    return this.redisService.wrap(`user:profile:${id}`, 120, async () => {
+      return this.fetchPublicProfile(id);
+    });
+  }
+
+  private async fetchPublicProfile(id: number): Promise<any> {
     const user = await this.usersRepository
       .createQueryBuilder('user')
       .select([
@@ -146,6 +152,7 @@ export class UsersService {
     const savedUser = await this.usersRepository.save(user);
     await this.redisService.delByPattern('leaderboard:*');
     await this.redisService.delByPattern('activeUsers:*');
+    await this.redisService.delByPattern(`user:profile:${id}`);
     return savedUser;
   }
 
@@ -202,7 +209,9 @@ export class UsersService {
       throw new BadRequestException('No changes detected.');
     }
 
-    return await this.usersRepository.save(user);
+    const updatedUser = await this.usersRepository.save(user);
+    await this.redisService.delByPattern(`user:profile:${id}`);
+    return updatedUser;
   }
 
   async remove(id: number): Promise<void> {
