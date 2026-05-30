@@ -236,7 +236,8 @@ export class AuthService {
         dept: user.dept,
         code: user.code,
         profile_pic: user.profile_pic,
-        points: user.points
+        points: user.points,
+        preferred_theme: user.preferred_theme,
       },
     };
   }

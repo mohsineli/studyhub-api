@@ -39,6 +39,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       linkedin: user.linkedin,
       instagram: user.instagram,
       facebook: user.facebook,
+      preferred_theme: user.preferred_theme,
     };
   }
 }
