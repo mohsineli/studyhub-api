@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -11,6 +13,8 @@ import { BookmarksModule } from './bookmarks/bookmarks.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ResourcesModule } from './resources/resources.module';
 import { AdminModule } from './admin/admin.module';
+import { RedisModule } from './redis/redis.module';
+import { ThrottleConfigModule } from './redis/throttle-config.module';
 
 @Module({
   imports: [
@@ -46,6 +50,8 @@ import { AdminModule } from './admin/admin.module';
         };
       },
     }),
+    RedisModule,
+    ThrottleConfigModule,
     AuthModule,
     UsersModule,
     MailModule,
@@ -56,6 +62,12 @@ import { AdminModule } from './admin/admin.module';
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

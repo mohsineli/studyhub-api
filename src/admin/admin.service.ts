@@ -7,6 +7,7 @@ import { Review } from '../reviews/entities/review.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { Session } from '../auth/entities/session.entity';
 import { Setting } from './entities/setting.entity';
+import { RedisService } from '../redis/redis.service';
 
 export const MODERATOR_PERMISSIONS = [
   { key: 'perm_view_active_users', label: 'Active Users', description: 'View active user statistics' },
@@ -26,22 +27,25 @@ export class AdminService {
     @InjectRepository(Resource) private resourceRepository: Repository<Resource>,
     @InjectRepository(Session) private sessionRepository: Repository<Session>,
     @InjectRepository(Setting) private settingRepository: Repository<Setting>,
+    private readonly redisService: RedisService,
   ) {}
 
   async getStats() {
-    const totalUsers = await this.userRepository.count();
-    const totalPendingNotes = await this.noteRepository.count({ where: { status: NoteStatus.PENDING } });
-    const totalApprovedNotes = await this.noteRepository.count({ where: { status: NoteStatus.APPROVED } });
-    const totalReviews = await this.reviewRepository.count();
-    const totalResources = await this.resourceRepository.count();
+    return this.redisService.wrap('admin:stats', 30, async () => {
+      const totalUsers = await this.userRepository.count();
+      const totalPendingNotes = await this.noteRepository.count({ where: { status: NoteStatus.PENDING } });
+      const totalApprovedNotes = await this.noteRepository.count({ where: { status: NoteStatus.APPROVED } });
+      const totalReviews = await this.reviewRepository.count();
+      const totalResources = await this.resourceRepository.count();
 
-    return {
-      totalUsers,
-      totalPendingNotes,
-      totalApprovedNotes,
-      totalReviews,
-      totalResources,
-    };
+      return {
+        totalUsers,
+        totalPendingNotes,
+        totalApprovedNotes,
+        totalReviews,
+        totalResources,
+      };
+    });
   }
 
   async getActiveUsers() {

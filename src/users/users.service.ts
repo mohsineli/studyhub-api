@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, ForbiddenException, Inject } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -7,6 +7,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserRole } from './entities/user.entity';
 import { NoteStatus } from '../notes/entities/note.entity';
 import { AdminService } from '../admin/admin.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class UsersService {
@@ -14,6 +15,7 @@ export class UsersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     private readonly adminService: AdminService,
+    private readonly redisService: RedisService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -53,29 +55,32 @@ export class UsersService {
   }
 
   async getLeaderboard(period?: string): Promise<(User & { noteCount: number })[]> {
-    const query = this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
-      .loadRelationCountAndMap('user.noteCount', 'user.notes', 'note', qb =>
-        qb.andWhere('note.status = :status', { status: NoteStatus.APPROVED })
-      )
-      .orderBy('user.points', 'DESC')
-      .take(30);
+    const cacheKey = `leaderboard:${period || 'all'}`;
 
-    if (period === 'current' || period === 'previous') {
-      const targetDate = new Date();
-      if (period === 'previous') {
-        targetDate.setMonth(targetDate.getMonth() - 1);
+    return this.redisService.wrap(cacheKey, 25, async () => {
+      const query = this.usersRepository.createQueryBuilder('user')
+        .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
+        .loadRelationCountAndMap('user.noteCount', 'user.notes', 'note', qb =>
+          qb.andWhere('note.status = :status', { status: NoteStatus.APPROVED })
+        )
+        .orderBy('user.points', 'DESC')
+        .take(30);
+
+      if (period === 'current' || period === 'previous') {
+        const targetDate = new Date();
+        if (period === 'previous') {
+          targetDate.setMonth(targetDate.getMonth() - 1);
+        }
+
+        const year = targetDate.getFullYear();
+        const month = targetDate.getMonth() + 1;
+
+        query.andWhere('EXTRACT(MONTH FROM user.created_at) = :month', { month })
+             .andWhere('EXTRACT(YEAR FROM user.created_at) = :year', { year });
       }
 
-      const year = targetDate.getFullYear();
-      const month = targetDate.getMonth() + 1; // JS months are 0-11
-
-      // Using EXTRACT for PostgreSQL month/year filtering
-      query.andWhere('EXTRACT(MONTH FROM user.created_at) = :month', { month })
-           .andWhere('EXTRACT(YEAR FROM user.created_at) = :year', { year });
-    }
-
-    return await query.getMany() as (User & { noteCount: number })[];
+      return await query.getMany() as (User & { noteCount: number })[];
+    });
   }
 
   async findOne(id: number): Promise<User> {
