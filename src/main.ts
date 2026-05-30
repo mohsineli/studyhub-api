@@ -8,6 +8,14 @@ import * as dns from 'dns';
 dotenv.config();
 dns.setDefaultResultOrder('ipv4first'); // Force IPv4 to prevent ENETUNREACH on Render
 
+// Suppress benign pg deprecation warning from TypeORM internals
+const { emitWarning } = process;
+process.emitWarning = function (warning, ...args) {
+  const msg = typeof warning === 'string' ? warning : warning?.message || '';
+  if (msg.includes('client.query() when the client is already executing a query')) return;
+  return emitWarning.call(process, warning, ...args);
+};
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
