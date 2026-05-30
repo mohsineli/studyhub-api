@@ -236,7 +236,12 @@ export class UsersService {
   }
 
   async updateLastActive(id: number): Promise<void> {
-    await this.usersRepository.update(id, { last_active_at: new Date() });
+    await this.usersRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ last_active_at: () => 'NOW()' })
+      .where('id = :id', { id })
+      .execute();
   }
 
   async findActiveUsersByDay(userRole: string, dateString?: string, page?: number, limit?: number) {
@@ -272,15 +277,13 @@ export class UsersService {
       await this.adminService.enforcePermission(userRole, 'perm_view_active_users');
     }
     
-    // Calculate threshold: now minus X minutes
-    const threshold = new Date(Date.now() - minutes * 60 * 1000);
-    
     const take = limit || 12;
     const skip = page ? (page - 1) * take : 0;
 
+    // Use database NOW() instead of JS Date to avoid timezone mismatch
     const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
-      .where('user.last_active_at >= :threshold', { threshold })
+      .where('user.last_active_at >= NOW() - make_interval(mins => :minutes)', { minutes })
       .orderBy('user.last_active_at', 'DESC')
       .take(take)
       .skip(skip);
