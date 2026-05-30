@@ -5,6 +5,7 @@ import { Resource, ResourceStatus } from './entities/resource.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
 import { AdminService } from '../admin/admin.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class ResourcesService {
@@ -12,6 +13,7 @@ export class ResourcesService {
     @InjectRepository(Resource)
     private readonly resourceRepository: Repository<Resource>,
     private readonly adminService: AdminService,
+    private readonly redisService: RedisService,
   ) {}
 
   async create(createResourceDto: CreateResourceDto, uploaderId: number): Promise<Resource> {
@@ -28,18 +30,22 @@ export class ResourcesService {
   }
 
   async findAll(page?: number, limit?: number) {
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
+    const cacheKey = `resources:${page || 1}:${limit || 12}`;
 
-    const [data, total] = await this.resourceRepository.findAndCount({
-      where: { status: ResourceStatus.APPROVED },
-      relations: ['uploader'],
-      order: { created_at: 'DESC' },
-      take,
-      skip,
+    return this.redisService.wrap(cacheKey, 30, async () => {
+      const take = limit || 12;
+      const skip = page ? (page - 1) * take : 0;
+
+      const [data, total] = await this.resourceRepository.findAndCount({
+        where: { status: ResourceStatus.APPROVED },
+        relations: ['uploader'],
+        order: { created_at: 'DESC' },
+        take,
+        skip,
+      });
+
+      return { data, total, page: page || 1, limit: take };
     });
-
-    return { data, total, page: page || 1, limit: take };
   }
 
   async findPending(page?: number, limit?: number) {
@@ -58,14 +64,16 @@ export class ResourcesService {
   }
 
   async findTrending(): Promise<Resource[]> {
-    return await this.resourceRepository.find({
-      where: { status: ResourceStatus.APPROVED },
-      relations: ['uploader'],
-      order: {
-        downloads: 'DESC',
-        avg_rating: 'DESC',
-      },
-      take: 10,
+    return this.redisService.wrap('resources:trending', 60, async () => {
+      return await this.resourceRepository.find({
+        where: { status: ResourceStatus.APPROVED },
+        relations: ['uploader'],
+        order: {
+          downloads: 'DESC',
+          avg_rating: 'DESC',
+        },
+        take: 10,
+      });
     });
   }
 

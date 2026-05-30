@@ -7,6 +7,7 @@ import { Note, NoteStatus } from './entities/note.entity';
 import { NoteReaction } from './entities/note-reaction.entity';
 import { User } from '../users/entities/user.entity';
 import { AdminService } from '../admin/admin.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class NotesService {
@@ -18,6 +19,7 @@ export class NotesService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly adminService: AdminService,
+    private readonly redisService: RedisService,
   ) {}
 
   async create(createNoteDto: CreateNoteDto, uploaderId: number) {
@@ -25,45 +27,53 @@ export class NotesService {
       ...createNoteDto,
       uploader_id: uploaderId,
     });
-    return await this.noteRepository.save(note);
+    const saved = await this.noteRepository.save(note);
+    await this.redisService.delByPattern('notes:*');
+    return saved;
   }
 
   async findAll(sort?: string, page?: number, limit?: number) {
-    const order: any = {};
-    
-    switch (sort) {
-      case 'top-rated':
-        order.avg_rating = 'DESC';
-        break;
-      case 'most-downloaded':
-        order.downloads = 'DESC';
-        break;
-      default:
-        order.created_at = 'DESC';
-    }
+    const cacheKey = `notes:${sort || 'latest'}:${page || 1}:${limit || 12}`;
 
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
+    return this.redisService.wrap(cacheKey, 30, async () => {
+      const order: any = {};
+      
+      switch (sort) {
+        case 'top-rated':
+          order.avg_rating = 'DESC';
+          break;
+        case 'most-downloaded':
+          order.downloads = 'DESC';
+          break;
+        default:
+          order.created_at = 'DESC';
+      }
 
-    const [data, total] = await this.noteRepository.findAndCount({
-      where: { status: NoteStatus.APPROVED },
-      relations: ['uploader'],
-      order,
-      take,
-      skip,
+      const take = limit || 12;
+      const skip = page ? (page - 1) * take : 0;
+
+      const [data, total] = await this.noteRepository.findAndCount({
+        where: { status: NoteStatus.APPROVED },
+        relations: ['uploader'],
+        order,
+        take,
+        skip,
+      });
+
+      return { data, total, page: page || 1, limit: take };
     });
-
-    return { data, total, page: page || 1, limit: take };
   }
 
   async findTrending(): Promise<Note[]> {
-    return await this.noteRepository.find({
-      where: { status: NoteStatus.APPROVED },
-      relations: ['uploader'],
-      order: {
-        downloads: 'DESC',
-      },
-      take: 10,
+    return this.redisService.wrap('notes:trending', 60, async () => {
+      return await this.noteRepository.find({
+        where: { status: NoteStatus.APPROVED },
+        relations: ['uploader'],
+        order: {
+          downloads: 'DESC',
+        },
+        take: 10,
+      });
     });
   }
 
@@ -112,6 +122,7 @@ export class NotesService {
       await this.userRepository.increment({ id: note.uploader_id }, 'points', 1);
       // +1 point for downloader
       await this.userRepository.increment({ id: downloaderId }, 'points', 1);
+      await this.redisService.delByPattern('leaderboard:*');
     }
 
     return note;
@@ -122,7 +133,10 @@ export class NotesService {
     if (note.uploader_id !== user.id && user.role !== 'admin' && user.role !== 'moderator') {
       throw new ForbiddenException('You do not have permission to delete this note');
     }
-    return await this.noteRepository.remove(note);
+    const result = await this.noteRepository.remove(note);
+    await this.redisService.delByPattern('notes:*');
+    await this.redisService.delByPattern('leaderboard:*');
+    return result;
   }
 
   async findPending(page?: number, limit?: number) {
@@ -151,7 +165,10 @@ export class NotesService {
     // Reward uploader with 10 points when their note is approved!
     if (status === NoteStatus.APPROVED) {
       await this.userRepository.increment({ id: note.uploader_id }, 'points', 10);
+      await this.redisService.delByPattern('leaderboard:*');
     }
+
+    await this.redisService.delByPattern('notes:*');
 
     return note;
   }
