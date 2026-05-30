@@ -41,11 +41,16 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  private isConnected(): boolean {
+    return this.client.status === 'ready';
+  }
+
   getClient(): Redis {
     return this.client;
   }
 
   async get<T>(key: string): Promise<T | null> {
+    if (!this.isConnected()) return null;
     try {
       const raw = await this.client.get(key);
       return raw ? (JSON.parse(raw) as T) : null;
@@ -55,6 +60,7 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async set(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+    if (!this.isConnected()) return;
     try {
       const serialized = JSON.stringify(value);
       if (ttlSeconds > 0) {
@@ -68,6 +74,7 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async del(key: string): Promise<void> {
+    if (!this.isConnected()) return;
     try {
       await this.client.del(key);
     } catch {
@@ -76,6 +83,7 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async delByPattern(pattern: string): Promise<void> {
+    if (!this.isConnected()) return;
     try {
       const stream = this.client.scanStream({ match: pattern, count: 100 });
       for await (const keys of stream) {

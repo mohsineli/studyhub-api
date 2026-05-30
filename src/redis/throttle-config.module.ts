@@ -14,11 +14,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
             ttl: 60_000,
             limit: 100,
           },
-          {
-            name: 'auth',
-            ttl: 60_000,
-            limit: 5,
-          },
         ],
       }),
     }),
