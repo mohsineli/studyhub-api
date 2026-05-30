@@ -200,6 +200,10 @@ export class UsersService {
       user.profile_pic = updateProfileDto.profile_pic;
       changed = true;
     }
+    if (updateProfileDto.preferred_theme !== undefined && updateProfileDto.preferred_theme !== user.preferred_theme) {
+      user.preferred_theme = updateProfileDto.preferred_theme;
+      changed = true;
+    }
 
     ['github', 'linkedin', 'instagram', 'facebook'].forEach(field => {
       if (updateProfileDto[field] !== undefined && updateProfileDto[field] !== user[field]) {

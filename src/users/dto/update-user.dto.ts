@@ -39,4 +39,8 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsOptional()
   @IsString()
   facebook?: string;
+
+  @IsOptional()
+  @IsString()
+  preferred_theme?: string;
 }
