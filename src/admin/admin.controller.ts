@@ -27,9 +27,10 @@ export class AdminController {
   }
 
   @Get('settings/:key')
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.STUDENT)
   async getSetting(@Param('key') key: string) {
-    const value = await this.adminService.getSetting(key, 'approved');
+    const fallback = key.includes('theme') ? 'current' : 'approved';
+    const value = await this.adminService.getSetting(key, fallback);
     return { key, value };
   }
 
