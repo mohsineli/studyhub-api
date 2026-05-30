@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bullmq';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -13,6 +14,7 @@ import { ResourcesModule } from './resources/resources.module';
 import { AdminModule } from './admin/admin.module';
 import { RedisModule } from './redis/redis.module';
 import { ThrottleConfigModule } from './redis/throttle-config.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -50,6 +52,17 @@ import { ThrottleConfigModule } from './redis/throttle-config.module';
     }),
     RedisModule,
     ThrottleConfigModule,
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          host: config.get('REDIS_HOST', 'localhost'),
+          port: config.get<number>('REDIS_PORT', 6379),
+        },
+      }),
+    }),
+    QueueModule,
     AuthModule,
     UsersModule,
     MailModule,

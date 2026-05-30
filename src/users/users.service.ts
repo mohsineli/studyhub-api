@@ -57,7 +57,7 @@ export class UsersService {
   async getLeaderboard(period?: string): Promise<(User & { noteCount: number })[]> {
     const cacheKey = `leaderboard:${period || 'all'}`;
 
-    return this.redisService.wrap(cacheKey, 25, async () => {
+    return this.redisService.wrap(cacheKey, 300, async () => {
       const query = this.usersRepository.createQueryBuilder('user')
         .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
         .loadRelationCountAndMap('user.noteCount', 'user.notes', 'note', qb =>
@@ -143,7 +143,10 @@ export class UsersService {
       updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
     }
     Object.assign(user, updateUserDto);
-    return await this.usersRepository.save(user);
+    const savedUser = await this.usersRepository.save(user);
+    await this.redisService.delByPattern('leaderboard:*');
+    await this.redisService.delByPattern('activeUsers:*');
+    return savedUser;
   }
 
   async updateProfile(id: number, updateProfileDto: any): Promise<User> {
@@ -217,6 +220,8 @@ export class UsersService {
     }
     user.banned = true;
     await this.usersRepository.save(user);
+    await this.redisService.delByPattern('leaderboard:*');
+    await this.redisService.delByPattern('activeUsers:*');
     return { message: `User "${user.name}" has been banned.` };
   }
 
@@ -224,6 +229,8 @@ export class UsersService {
     const user = await this.findOne(targetId);
     user.banned = false;
     await this.usersRepository.save(user);
+    await this.redisService.delByPattern('leaderboard:*');
+    await this.redisService.delByPattern('activeUsers:*');
     return { message: `User "${user.name}" has been unbanned.` };
   }
 
@@ -237,6 +244,8 @@ export class UsersService {
     }
     user.role = role;
     await this.usersRepository.save(user);
+    await this.redisService.delByPattern('leaderboard:*');
+    await this.redisService.delByPattern('activeUsers:*');
     return { message: `User "${user.name}" role updated to "${role}".` };
   }
 
@@ -288,7 +297,7 @@ export class UsersService {
     const skip = page ? (page - 1) * take : 0;
     const cacheKey = `activeUsers:${userRole}:${page || 1}:${take}`;
 
-    return this.redisService.wrap(cacheKey, 15, async () => {
+    return this.redisService.wrap(cacheKey, 30, async () => {
       const query = this.usersRepository.createQueryBuilder('user')
         .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
         .where('user.last_active_at >= NOW() - make_interval(mins => :minutes)', { minutes })

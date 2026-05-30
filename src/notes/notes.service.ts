@@ -35,7 +35,7 @@ export class NotesService {
   async findAll(sort?: string, page?: number, limit?: number) {
     const cacheKey = `notes:${sort || 'latest'}:${page || 1}:${limit || 12}`;
 
-    return this.redisService.wrap(cacheKey, 30, async () => {
+    return this.redisService.wrap(cacheKey, 300, async () => {
       const order: any = {};
       
       switch (sort) {
@@ -65,7 +65,7 @@ export class NotesService {
   }
 
   async findTrending(): Promise<Note[]> {
-    return this.redisService.wrap('notes:trending', 60, async () => {
+    return this.redisService.wrap('notes:trending', 600, async () => {
       return await this.noteRepository.find({
         where: { status: NoteStatus.APPROVED },
         relations: ['uploader'],
@@ -108,7 +108,9 @@ export class NotesService {
       throw new ForbiddenException('You do not have permission to update this note');
     }
     Object.assign(note, updateNoteDto);
-    return await this.noteRepository.save(note);
+    await this.noteRepository.save(note);
+    await this.redisService.delByPattern('notes:*');
+    return note;
   }
 
   async incrementDownload(id: number, downloaderId?: number) {

@@ -10,6 +10,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { JwtRefreshStrategy } from './jwt-refresh.strategy';
 import { Session } from './entities/session.entity';
 import { PendingUser } from './entities/pending-user.entity';
+import { QueueModule } from '../queue/queue.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { PendingUser } from './entities/pending-user.entity';
     ConfigModule,
     TypeOrmModule.forFeature([Session, PendingUser]),
     JwtModule, // No default config — each sign() call gets its own secret/expiry
+    QueueModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtRefreshStrategy],

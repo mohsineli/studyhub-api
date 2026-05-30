@@ -11,7 +11,8 @@ import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { Session } from './entities/session.entity';
 import { PendingUser } from './entities/pending-user.entity';
-import { MailService } from '../mail/mail.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { UserRole } from '../users/entities/user.entity';
 import { RedisService } from '../redis/redis.service';
 import * as bcrypt from 'bcrypt';
@@ -27,7 +28,7 @@ export class AuthService {
     private sessionRepository: Repository<Session>,
     @InjectRepository(PendingUser)
     private pendingUserRepository: Repository<PendingUser>,
-    private mailService: MailService,
+    @InjectQueue('email') private emailQueue: Queue,
     private redisService: RedisService,
   ) {}
 
@@ -134,8 +135,12 @@ export class AuthService {
 
     await this.pendingUserRepository.save(pendingUser);
 
-    // Send real email with name
-    await this.mailService.sendVerificationEmail(createUserDto.email, createUserDto.name, otp);
+    // Send verification email via queue
+    await this.emailQueue.add('send-verification', {
+      to: createUserDto.email,
+      name: createUserDto.name,
+      otp,
+    });
 
     return {
       message: 'Registration initiated. Please verify your email with the OTP sent.',
@@ -302,8 +307,12 @@ export class AuthService {
 
     await this.usersService.update(user.id, { otp, otp_expires_at });
 
-    // Send real email with name
-    await this.mailService.sendPasswordResetEmail(user.email, user.name, otp);
+    // Send password reset email via queue
+    await this.emailQueue.add('send-password-reset', {
+      to: user.email,
+      name: user.name,
+      otp,
+    });
 
     return { message: 'If an account exists with this email, an OTP has been sent' };
   }

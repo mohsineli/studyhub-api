@@ -31,7 +31,7 @@ export class AdminService {
   ) {}
 
   async getStats() {
-    return this.redisService.wrap('admin:stats', 30, async () => {
+    return this.redisService.wrap('admin:stats', 300, async () => {
       const totalUsers = await this.userRepository.count();
       const totalPendingNotes = await this.noteRepository.count({ where: { status: NoteStatus.PENDING } });
       const totalApprovedNotes = await this.noteRepository.count({ where: { status: NoteStatus.APPROVED } });

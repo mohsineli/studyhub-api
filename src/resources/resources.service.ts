@@ -26,13 +26,15 @@ export class ResourcesService {
       uploader_id: uploaderId,
       status,
     });
-    return await this.resourceRepository.save(resource);
+    const saved = await this.resourceRepository.save(resource);
+    await this.redisService.delByPattern('resources:*');
+    return saved;
   }
 
   async findAll(page?: number, limit?: number) {
     const cacheKey = `resources:${page || 1}:${limit || 12}`;
 
-    return this.redisService.wrap(cacheKey, 30, async () => {
+    return this.redisService.wrap(cacheKey, 300, async () => {
       const take = limit || 12;
       const skip = page ? (page - 1) * take : 0;
 
@@ -64,7 +66,7 @@ export class ResourcesService {
   }
 
   async findTrending(): Promise<Resource[]> {
-    return this.redisService.wrap('resources:trending', 60, async () => {
+    return this.redisService.wrap('resources:trending', 600, async () => {
       return await this.resourceRepository.find({
         where: { status: ResourceStatus.APPROVED },
         relations: ['uploader'],
@@ -94,7 +96,9 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have permission to edit this resource');
     }
     Object.assign(resource, updateResourceDto);
-    return await this.resourceRepository.save(resource);
+    const updated = await this.resourceRepository.save(resource);
+    await this.redisService.delByPattern('resources:*');
+    return updated;
   }
 
   async updateStatus(id: number, status: ResourceStatus, userRole?: string): Promise<Resource> {
@@ -103,13 +107,17 @@ export class ResourcesService {
     }
     const resource = await this.findOne(id);
     resource.status = status;
-    return await this.resourceRepository.save(resource);
+    const saved = await this.resourceRepository.save(resource);
+    await this.redisService.delByPattern('resources:*');
+    return saved;
   }
 
   async incrementDownload(id: number): Promise<Resource> {
     const resource = await this.findOne(id);
     resource.downloads += 1;
-    return await this.resourceRepository.save(resource);
+    const saved = await this.resourceRepository.save(resource);
+    await this.redisService.delByPattern('resources:*');
+    return saved;
   }
 
   async remove(id: number, user: any): Promise<void> {
@@ -118,5 +126,6 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have permission to delete this resource');
     }
     await this.resourceRepository.remove(resource);
+    await this.redisService.delByPattern('resources:*');
   }
 }
