@@ -13,6 +13,7 @@ import { Session } from './entities/session.entity';
 import { PendingUser } from './entities/pending-user.entity';
 import { MailService } from '../mail/mail.service';
 import { UserRole } from '../users/entities/user.entity';
+import { RedisService } from '../redis/redis.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -27,6 +28,7 @@ export class AuthService {
     @InjectRepository(PendingUser)
     private pendingUserRepository: Repository<PendingUser>,
     private mailService: MailService,
+    private redisService: RedisService,
   ) {}
 
   // ─── Token Helpers ──────────────────────────────────────────────────────────
@@ -205,6 +207,7 @@ export class AuthService {
       expires_at: expiresAt,
     });
     await this.sessionRepository.save(session);
+    await this.cacheSession(session, hashedRefreshToken);
 
     // Explicitly update last_active_at on login so it's instantly recorded
     await this.usersService.updateLastActive(user.id);
@@ -228,19 +231,15 @@ export class AuthService {
   }
 
   async refreshTokens(userId: number, rawRefreshToken: string, req: Express.Request, res: Express.Response) {
-    const sessions = await this.sessionRepository.find({ where: { userId } });
-    
-    let currentSession: Session | null = null;
     const hashedRawToken = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
-    for (const session of sessions) {
-      if (session.refresh_token === hashedRawToken) {
-        currentSession = session;
-        break;
-      }
-    }
+
+    let currentSession = await this.getSessionFromCache(userId, hashedRawToken);
 
     if (!currentSession || currentSession.expires_at < new Date()) {
-      if (currentSession) await this.sessionRepository.remove(currentSession);
+      if (currentSession) {
+        await this.sessionRepository.remove(currentSession);
+        await this.removeSessionFromCache(userId, hashedRawToken);
+      }
       throw new UnauthorizedException('Access Denied - Invalid or expired session');
     }
 
@@ -256,6 +255,7 @@ export class AuthService {
     currentSession.expires_at = expiresAt;
     
     await this.sessionRepository.save(currentSession);
+    await this.cacheSession(currentSession, currentSession.refresh_token);
     this.setRefreshTokenCookie(res, new_refresh_token, req);
 
     return { 
@@ -265,12 +265,13 @@ export class AuthService {
   }
 
   async logout(userId: number, rawRefreshToken: string, res: Express.Response, req?: Express.Request) {
+    const hashedRawToken = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
     const sessions = await this.sessionRepository.find({ where: { userId } });
     
-    const hashedRawToken = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
     for (const session of sessions) {
       if (session.refresh_token === hashedRawToken) {
         await this.sessionRepository.remove(session);
+        await this.removeSessionFromCache(userId, hashedRawToken);
         break;
       }
     }
@@ -281,6 +282,7 @@ export class AuthService {
 
   async logoutAll(userId: number, res: Express.Response, req?: Express.Request) {
     await this.sessionRepository.delete({ userId });
+    await this.redisService.delByPattern(`session:${userId}:*`);
     this.clearRefreshTokenCookie(res, req);
     return { message: 'Logged out successfully from all devices' };
   }
@@ -328,5 +330,33 @@ export class AuthService {
     await this.sessionRepository.delete({ userId: user.id });
 
     return { message: 'Password reset successfully' };
+  }
+
+  private sessionKey(userId: number, hashedToken: string): string {
+    return `session:${userId}:${hashedToken}`;
+  }
+
+  private async cacheSession(session: Session, hashedToken: string): Promise<void> {
+    const ttl = 7 * 24 * 60 * 60; // 7 days in seconds
+    await this.redisService.set(this.sessionKey(session.userId, hashedToken), session, ttl);
+  }
+
+  private async getSessionFromCache(userId: number, hashedToken: string): Promise<Session | null> {
+    const cached = await this.redisService.get<Session>(this.sessionKey(userId, hashedToken));
+    if (cached) return cached;
+
+    // Fallback to DB
+    const sessions = await this.sessionRepository.find({ where: { userId } });
+    for (const session of sessions) {
+      if (session.refresh_token === hashedToken) {
+        await this.cacheSession(session, hashedToken);
+        return session;
+      }
+    }
+    return null;
+  }
+
+  private async removeSessionFromCache(userId: number, hashedToken: string): Promise<void> {
+    await this.redisService.del(this.sessionKey(userId, hashedToken));
   }
 }

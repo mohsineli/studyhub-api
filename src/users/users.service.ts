@@ -247,6 +247,8 @@ export class UsersService {
       .set({ last_active_at: () => 'NOW()' })
       .where('id = :id', { id })
       .execute();
+
+    await this.redisService.delByPattern('activeUsers:*');
   }
 
   async findActiveUsersByDay(userRole: string, dateString?: string, page?: number, limit?: number) {
@@ -284,16 +286,18 @@ export class UsersService {
     
     const take = limit || 12;
     const skip = page ? (page - 1) * take : 0;
+    const cacheKey = `activeUsers:${userRole}:${page || 1}:${take}`;
 
-    // Use database NOW() instead of JS Date to avoid timezone mismatch
-    const query = this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
-      .where('user.last_active_at >= NOW() - make_interval(mins => :minutes)', { minutes })
-      .orderBy('user.last_active_at', 'DESC')
-      .take(take)
-      .skip(skip);
+    return this.redisService.wrap(cacheKey, 15, async () => {
+      const query = this.usersRepository.createQueryBuilder('user')
+        .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
+        .where('user.last_active_at >= NOW() - make_interval(mins => :minutes)', { minutes })
+        .orderBy('user.last_active_at', 'DESC')
+        .take(take)
+        .skip(skip);
 
-    const [users, total] = await query.getManyAndCount();
-    return { data: users, total, page: page || 1, limit: take };
+      const [users, total] = await query.getManyAndCount();
+      return { data: users, total, page: page || 1, limit: take };
+    });
   }
 }
