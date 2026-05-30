@@ -27,11 +27,12 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async onModuleInit(): Promise<void> {
+    if (this.client.status === 'ready') return;
     try {
       await this.client.connect();
       console.log('[Redis] Connected');
-    } catch {
-      console.warn('[Redis] Connection failed — running without cache');
+    } catch (err) {
+      console.warn(`[Redis] Connection failed — ${err?.message || err}`);
     }
   }
 
