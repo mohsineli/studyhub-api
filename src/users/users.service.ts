@@ -6,6 +6,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserRole } from './entities/user.entity';
 import { NoteStatus } from '../notes/entities/note.entity';
+import { Session } from '../auth/entities/session.entity';
 import { AdminService } from '../admin/admin.service';
 import { RedisService } from '../redis/redis.service';
 
@@ -14,6 +15,8 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Session)
+    private sessionRepository: Repository<Session>,
     private readonly adminService: AdminService,
     private readonly redisService: RedisService,
   ) {}
@@ -276,19 +279,25 @@ export class UsersService {
     let dateStr = dateString;
     if (!dateStr) {
       const d = new Date();
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
+      const year = d.getUTCFullYear();
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
       dateStr = `${year}-${month}-${day}`;
     }
 
     const take = limit || 12;
     const skip = page ? (page - 1) * take : 0;
 
-    // Use PostgreSQL TO_CHAR to match the YYYY-MM-DD string exactly
+    // Find users who had a session (login) on the given date — accurate for historical queries
+    const sessionSubquery = this.sessionRepository
+      .createQueryBuilder('session')
+      .select('DISTINCT session.userId')
+      .where("TO_CHAR(session.created_at, 'YYYY-MM-DD') = :dateStr", { dateStr });
+
     const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
-      .where("TO_CHAR(user.last_active_at, 'YYYY-MM-DD') = :dateStr", { dateStr })
+      .where(`user.id IN (${sessionSubquery.getQuery()})`)
+      .setParameters(sessionSubquery.getParameters())
       .orderBy('user.last_active_at', 'DESC')
       .take(take)
       .skip(skip);
