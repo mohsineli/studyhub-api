@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -10,7 +11,10 @@ import { UserRole } from '../users/entities/user.entity';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN) // Restrict controller to Admin by default
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly analyticsService: AnalyticsService,
+  ) {}
 
   @Get('stats')
   getStats() {
@@ -56,5 +60,25 @@ export class AdminController {
     @Body() body: { value: string },
   ) {
     return this.adminService.setModeratorPermission(key, body.value);
+  }
+
+  @Get('analytics/overview')
+  async getAnalyticsOverview(@Query('filter') filter: string = 'all') {
+    return this.analyticsService.getOverview(filter);
+  }
+
+  @Get('analytics/users')
+  async getUserAnalytics(@Query('filter') filter: string = 'all') {
+    return this.analyticsService.getUserAnalytics(filter);
+  }
+
+  @Get('analytics/activity')
+  async getActivityAnalytics(@Query('filter') filter: string = 'all') {
+    return this.analyticsService.getActivityAnalytics(filter);
+  }
+
+  @Get('analytics/content')
+  async getContentAnalytics(@Query('filter') filter: string = 'all') {
+    return this.analyticsService.getContentAnalytics(filter);
   }
 }
