@@ -1,7 +1,7 @@
 import { Injectable, ConflictException, NotFoundException, BadRequestException, ForbiddenException, Inject } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThanOrEqual } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserRole } from './entities/user.entity';
@@ -9,6 +9,7 @@ import { NoteStatus } from '../notes/entities/note.entity';
 import { Session } from '../auth/entities/session.entity';
 import { AdminService } from '../admin/admin.service';
 import { RedisService } from '../redis/redis.service';
+import { Setting } from '../admin/entities/setting.entity';
 
 @Injectable()
 export class UsersService {
@@ -17,6 +18,8 @@ export class UsersService {
     private usersRepository: Repository<User>,
     @InjectRepository(Session)
     private sessionRepository: Repository<Session>,
+    @InjectRepository(Setting)
+    private settingRepository: Repository<Setting>,
     private readonly adminService: AdminService,
     private readonly redisService: RedisService,
   ) {}
@@ -58,7 +61,14 @@ export class UsersService {
   }
 
   async getLeaderboard(period?: string): Promise<(User & { noteCount: number })[]> {
-    const cacheKey = `leaderboard:${period || 'all'}`;
+    if (period === 'previous') {
+      return this.getPreviousLeaderboard();
+    }
+
+    // Monthly points reset: demote users with 500+ points to 500 at the start of each month
+    await this.applyMonthlyReset();
+
+    const cacheKey = 'leaderboard:current';
 
     return this.redisService.wrap(cacheKey, 300, async () => {
       const query = this.usersRepository.createQueryBuilder('user')
@@ -67,23 +77,68 @@ export class UsersService {
           qb.andWhere('note.status = :status', { status: NoteStatus.APPROVED })
         )
         .orderBy('user.points', 'DESC')
+        .addOrderBy('user.name', 'ASC')
         .take(30);
-
-      if (period === 'current' || period === 'previous') {
-        const targetDate = new Date();
-        if (period === 'previous') {
-          targetDate.setMonth(targetDate.getMonth() - 1);
-        }
-
-        const year = targetDate.getFullYear();
-        const month = targetDate.getMonth() + 1;
-
-        query.andWhere('EXTRACT(MONTH FROM user.created_at) = :month', { month })
-             .andWhere('EXTRACT(YEAR FROM user.created_at) = :year', { year });
-      }
 
       return await query.getMany() as (User & { noteCount: number })[];
     });
+  }
+
+  private async getPreviousLeaderboard(): Promise<(User & { noteCount: number })[]> {
+    try {
+      const setting = await this.settingRepository.findOne({ where: { key: 'leaderboard_previous_snapshot' } });
+      if (setting?.value) {
+        return JSON.parse(setting.value) as (User & { noteCount: number })[];
+      }
+    } catch {}
+    return [];
+  }
+
+  private async takeSnapshot() {
+    const leaders = await this.usersRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
+      .orderBy('user.points', 'DESC')
+      .addOrderBy('user.name', 'ASC')
+      .take(30)
+      .getMany();
+
+    const snapshot = JSON.stringify(leaders);
+    let setting = await this.settingRepository.findOne({ where: { key: 'leaderboard_previous_snapshot' } });
+    if (!setting) {
+      setting = this.settingRepository.create({ key: 'leaderboard_previous_snapshot', value: snapshot });
+    } else {
+      setting.value = snapshot;
+    }
+    await this.settingRepository.save(setting);
+  }
+
+  private async applyMonthlyReset() {
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+
+    let resetSetting = await this.settingRepository.findOne({ where: { key: 'leaderboard_reset_month' } });
+
+    // First time or new month — take snapshot and reset
+    if (!resetSetting || resetSetting.value !== currentMonthKey) {
+      await this.takeSnapshot();
+
+      if (!resetSetting) {
+        resetSetting = this.settingRepository.create({ key: 'leaderboard_reset_month', value: currentMonthKey });
+      } else {
+        resetSetting.value = currentMonthKey;
+      }
+      await this.settingRepository.save(resetSetting);
+
+      await this.usersRepository
+        .createQueryBuilder()
+        .update(User)
+        .set({ points: 500 })
+        .where('points >= :max', { max: 500 })
+        .execute();
+
+      await this.redisService.delByPattern('leaderboard:*');
+    }
   }
 
   async findOne(id: number): Promise<User> {
