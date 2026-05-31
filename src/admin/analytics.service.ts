@@ -19,8 +19,7 @@ export class AnalyticsService {
     private readonly redisService: RedisService,
   ) {}
 
-  private getDateRange(filter: string): { start: Date; end: Date } | null {
-    if (!filter || filter === 'all') return null;
+  private getDateRange(filter: string): { start: Date; end: Date } {
     const now = new Date();
     let start: Date;
     switch (filter) {
@@ -40,25 +39,25 @@ export class AnalyticsService {
         start = new Date(now.getFullYear(), 0, 1);
         break;
       default:
-        return null;
+        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     }
     return { start, end: now };
   }
 
-  async getOverview(filter: string = 'all') {
+  async getOverview(filter: string = '30d') {
     const cacheKey = `analytics:overview:${filter}`;
     return this.redisService.wrap(cacheKey, 120, async () => {
       const range = this.getDateRange(filter);
-      const where = range ? { created_at: Between(range.start, range.end) as any } : {};
+      const where = { created_at: Between(range.start, range.end) as any };
 
       const totalUsers = await this.userRepository.count();
       const totalModerators = await this.userRepository.count({ where: { role: UserRole.MODERATOR } });
       const totalAdmins = await this.userRepository.count({ where: { role: UserRole.ADMIN } });
       const totalBanned = await this.userRepository.count({ where: { banned: true } });
-      const newUsers = range ? await this.userRepository.count({ where }) : 0;
+      const newUsers = await this.userRepository.count({ where });
 
-      const activeWhere = range ? { last_active_at: Between(range.start, range.end) as any } : {};
-      const activeUsers = range ? await this.userRepository.count({ where: activeWhere }) : 0;
+      const activeWhere = { last_active_at: Between(range.start, range.end) as any };
+      const activeUsers = await this.userRepository.count({ where: activeWhere });
 
       const totalNotes = await this.noteRepository.count();
       const totalResources = await this.resourceRepository.count();
@@ -88,20 +87,16 @@ export class AnalyticsService {
     });
   }
 
-  async getUserAnalytics(filter: string = 'all') {
+  async getUserAnalytics(filter: string = '30d') {
     const cacheKey = `analytics:users:${filter}`;
     return this.redisService.wrap(cacheKey, 120, async () => {
       const range = this.getDateRange(filter);
-
-      const registrationWhere = range
-        ? { created_at: Between(range.start, range.end) as any }
-        : {};
 
       const registrations = await this.userRepository
         .createQueryBuilder('user')
         .select("DATE(user.created_at)", "date")
         .addSelect("COUNT(user.id)", "count")
-        .where(registrationWhere)
+        .where({ created_at: Between(range.start, range.end) as any })
         .groupBy("DATE(user.created_at)")
         .orderBy("DATE(user.created_at)", "ASC")
         .getRawMany();
@@ -146,20 +141,16 @@ export class AnalyticsService {
     });
   }
 
-  async getActivityAnalytics(filter: string = 'all') {
+  async getActivityAnalytics(filter: string = '30d') {
     const cacheKey = `analytics:activity:${filter}`;
     return this.redisService.wrap(cacheKey, 120, async () => {
       const range = this.getDateRange(filter);
-
-      const where = range
-        ? { created_at: Between(range.start, range.end) as any }
-        : {};
 
       const loginActivity = await this.sessionRepository
         .createQueryBuilder('session')
         .select("DATE(session.created_at)", "date")
         .addSelect("COUNT(DISTINCT session.userId)", "activeUsers")
-        .where(where)
+        .where({ created_at: Between(range.start, range.end) as any })
         .groupBy("DATE(session.created_at)")
         .orderBy("DATE(session.created_at)", "ASC")
         .getRawMany();
@@ -168,7 +159,7 @@ export class AnalyticsService {
         .createQueryBuilder('session')
         .select("EXTRACT(HOUR FROM session.created_at)", "hour")
         .addSelect("COUNT(DISTINCT session.userId)", "activeUsers")
-        .where(where)
+        .where({ created_at: Between(range.start, range.end) as any })
         .groupBy("EXTRACT(HOUR FROM session.created_at)")
         .orderBy("COUNT(DISTINCT session.userId)", "DESC")
         .getRawMany();
@@ -178,7 +169,7 @@ export class AnalyticsService {
         .select("TO_CHAR(session.created_at, 'Day')", "dayName")
         .addSelect("EXTRACT(DOW FROM session.created_at)", "dow")
         .addSelect("COUNT(DISTINCT session.userId)", "activeUsers")
-        .where(where)
+        .where({ created_at: Between(range.start, range.end) as any })
         .groupBy("TO_CHAR(session.created_at, 'Day')")
         .addGroupBy("EXTRACT(DOW FROM session.created_at)")
         .orderBy("EXTRACT(DOW FROM session.created_at)", "ASC")
@@ -205,20 +196,16 @@ export class AnalyticsService {
     });
   }
 
-  async getContentAnalytics(filter: string = 'all') {
+  async getContentAnalytics(filter: string = '30d') {
     const cacheKey = `analytics:content:${filter}`;
     return this.redisService.wrap(cacheKey, 120, async () => {
       const range = this.getDateRange(filter);
-
-      const where = range
-        ? { created_at: Between(range.start, range.end) as any }
-        : {};
 
       const notesCreated = await this.noteRepository
         .createQueryBuilder('note')
         .select("DATE(note.created_at)", "date")
         .addSelect("COUNT(note.id)", "count")
-        .where(where)
+        .where({ created_at: Between(range.start, range.end) as any })
         .groupBy("DATE(note.created_at)")
         .orderBy("DATE(note.created_at)", "ASC")
         .getRawMany();
@@ -227,7 +214,7 @@ export class AnalyticsService {
         .createQueryBuilder('resource')
         .select("DATE(resource.created_at)", "date")
         .addSelect("COUNT(resource.id)", "count")
-        .where(where)
+        .where({ created_at: Between(range.start, range.end) as any })
         .groupBy("DATE(resource.created_at)")
         .orderBy("DATE(resource.created_at)", "ASC")
         .getRawMany();
@@ -261,7 +248,7 @@ export class AnalyticsService {
         .createQueryBuilder('review')
         .select("DATE(review.created_at)", "date")
         .addSelect("COUNT(review.id)", "count")
-        .where({ ...where, parent_id: null })
+        .where({ created_at: Between(range.start, range.end) as any, parent_id: null })
         .groupBy("DATE(review.created_at)")
         .orderBy("DATE(review.created_at)", "ASC")
         .getRawMany();
