@@ -8,6 +8,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { NoteStatus } from './entities/note.entity';
+import { Public } from '../auth/public.decorator';
 
 @Controller('notes')
 @UseGuards(JwtAuthGuard)
@@ -66,6 +67,7 @@ export class NotesController {
   }
 
   @Get(':id')
+  @Public()
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.notesService.findOneCached(id);
   }
@@ -80,11 +82,12 @@ export class NotesController {
   }
 
   @Get(':id/reactions')
+  @Public()
   getReactions(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: any,
   ) {
-    return this.notesService.getReactionSummary(id, req.user.id);
+    return this.notesService.getReactionSummary(id, req.user?.id);
   }
 
   @Patch(':id')

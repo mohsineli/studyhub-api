@@ -134,6 +134,8 @@ export class NotesService {
       await this.redisService.delByPattern('leaderboard:*');
     }
 
+    await this.redisService.delByPattern('notes:*');
+
     return note;
   }
 

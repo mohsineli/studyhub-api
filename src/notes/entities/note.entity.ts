@@ -45,6 +45,9 @@ export class Note {
   @Column({ type: 'decimal', precision: 3, scale: 2, default: 0 })
   avg_rating: number;
 
+  @Column({ type: 'int', default: 0 })
+  total_ratings: number;
+
   @Column({
     type: 'enum',
     enum: NoteStatus,

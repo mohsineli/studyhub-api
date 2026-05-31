@@ -5,6 +5,7 @@ import { Review } from './entities/review.entity';
 import { ReviewLike } from './entities/review-like.entity';
 import { Note } from '../notes/entities/note.entity';
 import { User } from '../users/entities/user.entity';
+import { RedisService } from '../redis/redis.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -20,6 +21,7 @@ export class ReviewsService {
     private readonly noteRepository: Repository<Note>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly redisService: RedisService,
   ) {}
 
   async submitRating(userId: number, noteId: number, rating: number) {
@@ -244,11 +246,13 @@ export class ReviewsService {
       .getMany();
 
     let avgRating = 0;
-    if (ratings.length > 0) {
+    const totalRatings = ratings.length;
+    if (totalRatings > 0) {
       const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
-      avgRating = sum / ratings.length;
+      avgRating = sum / totalRatings;
     }
 
-    await this.noteRepository.update({ id: noteId }, { avg_rating: avgRating });
+    await this.noteRepository.update({ id: noteId }, { avg_rating: avgRating, total_ratings: totalRatings });
+    await this.redisService.delByPattern('notes:*');
   }
 }
