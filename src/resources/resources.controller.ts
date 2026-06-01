@@ -34,6 +34,15 @@ export class ResourcesController {
     return this.resourcesService.findAll(page, limit);
   }
 
+  // Browse resources grouped by course (paginated by course)
+  @Get('courses')
+  findCourses(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.resourcesService.findCourses(page, limit);
+  }
+
   // Admin and moderator can see trending resources
   @Get('trending')
   @UseGuards(RolesGuard)

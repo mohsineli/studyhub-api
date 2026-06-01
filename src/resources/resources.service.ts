@@ -65,6 +65,39 @@ export class ResourcesService {
     return { data, total, page: page || 1, limit: take };
   }
 
+  async findCourses(page: number = 1, limit: number = 12) {
+    const cacheKey = `resources:courses:${page}:${limit}`;
+
+    return this.redisService.wrap(cacheKey, 300, async () => {
+      const take = limit;
+      const skip = (page - 1) * take;
+
+      const data = await this.resourceRepository
+        .createQueryBuilder('resource')
+        .select('resource.subject', 'subject')
+        .addSelect('resource.course_code', 'course_code')
+        .addSelect('COUNT(resource.id)', 'resourceCount')
+        .where('resource.status = :status', { status: ResourceStatus.APPROVED })
+        .groupBy('resource.subject')
+        .addGroupBy('resource.course_code')
+        .orderBy('"resourceCount"', 'DESC')
+        .addOrderBy('resource.subject', 'ASC')
+        .offset(skip)
+        .limit(take)
+        .getRawMany();
+
+      const totalResult = await this.resourceRepository
+        .createQueryBuilder('resource')
+        .select('resource.subject')
+        .where('resource.status = :status', { status: ResourceStatus.APPROVED })
+        .groupBy('resource.subject')
+        .addGroupBy('resource.course_code')
+        .getRawMany();
+
+      return { data, total: totalResult.length, page, limit: take };
+    });
+  }
+
   async findTrending(): Promise<Resource[]> {
     return this.redisService.wrap('resources:trending', 600, async () => {
       return await this.resourceRepository.find({
