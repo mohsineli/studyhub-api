@@ -24,7 +24,7 @@ export class Notification {
   @Column()
   user_id: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   actor_id: number | null;
 
   @Column({ length: 50 })
@@ -39,7 +39,7 @@ export class Notification {
   @Column({ length: 50 })
   entity_type: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   entity_id: number | null;
 
   @Column({ type: 'text', nullable: true })
