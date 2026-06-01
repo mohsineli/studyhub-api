@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, OneToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, OneToMany, Index } from 'typeorm';
 import { Note } from '../../notes/entities/note.entity';
 import { Bookmark } from '../../bookmarks/entities/bookmark.entity';
 
@@ -22,6 +22,7 @@ export class User {
   @Column({ length: 255 })
   password: string;
 
+  @Index('idx_users_role')
   @Column({
     type: 'enum',
     enum: UserRole,
@@ -29,12 +30,14 @@ export class User {
   })
   role: UserRole;
 
+  @Index('idx_users_points')
   @Column({ type: 'int', default: 0 })
   points: number;
 
   @Column({ type: 'boolean', default: false })
   verified: boolean;
 
+  @Index('idx_users_banned')
   @Column({ type: 'boolean', default: false })
   banned: boolean;
 
@@ -68,6 +71,7 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   otp_expires_at: Date;
 
+  @Index('idx_users_last_active')
   @Column({ type: 'timestamp', nullable: true })
   last_active_at: Date;
 

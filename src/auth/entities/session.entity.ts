@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('sessions')
@@ -25,6 +25,7 @@ export class Session {
   @JoinColumn({ name: 'userId' })
   user: User;
 
+  @Index('idx_sessions_user')
   @Column()
   userId: number;
 }

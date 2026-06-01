@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
@@ -24,6 +25,7 @@ export class Resource {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index('idx_resources_uploader')
   @Column({ nullable: true })
   uploader_id: number;
 
@@ -58,6 +60,7 @@ export class Resource {
   @Column({ type: 'int', default: 0 })
   downloads: number;
 
+  @Index('idx_resources_status')
   @Column({
     type: 'enum',
     enum: ResourceStatus,

@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, OneToMany, Index } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Bookmark } from '../../bookmarks/entities/bookmark.entity';
 import { NoteReaction } from './note-reaction.entity';
@@ -14,6 +14,7 @@ export class Note {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index('idx_notes_uploader')
   @Column()
   uploader_id: number;
 
@@ -33,6 +34,7 @@ export class Note {
   @Column({ length: 50, nullable: false })
   code: string;
 
+  @Index('idx_notes_dept')
   @Column({ length: 100, nullable: false })
   dept: string;
 
@@ -48,6 +50,7 @@ export class Note {
   @Column({ type: 'int', default: 0 })
   total_ratings: number;
 
+  @Index('idx_notes_status')
   @Column({
     type: 'enum',
     enum: NoteStatus,
