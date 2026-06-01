@@ -48,6 +48,9 @@ export class Notification {
   @Column({ default: false })
   is_read: boolean;
 
+  @Column({ type: 'timestamp', nullable: true })
+  read_at: Date | null;
+
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any> | null;
 

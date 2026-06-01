@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { Repository, FindOptionsWhere, LessThan } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
 
 @Injectable()
@@ -72,7 +73,7 @@ export class NotificationsService {
   async markAsRead(id: number, userId: number): Promise<Notification | null> {
     await this.notificationRepository.update(
       { id, user_id: userId },
-      { is_read: true },
+      { is_read: true, read_at: new Date() },
     );
     return this.notificationRepository.findOne({ where: { id } });
   }
@@ -80,12 +81,23 @@ export class NotificationsService {
   async markAllAsRead(userId: number): Promise<void> {
     await this.notificationRepository.update(
       { user_id: userId, is_read: false },
-      { is_read: true },
+      { is_read: true, read_at: new Date() },
     );
   }
 
   async delete(id: number, userId: number): Promise<boolean> {
     const result = await this.notificationRepository.delete({ id, user_id: userId });
     return (result.affected ?? 0) > 0;
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async cleanupOldReadNotifications(): Promise<void> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    await this.notificationRepository.delete({
+      is_read: true,
+      read_at: LessThan(thirtyDaysAgo),
+    });
   }
 }

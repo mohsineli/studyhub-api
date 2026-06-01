@@ -106,6 +106,9 @@ export class ReviewsService {
 
     const noteUrl = `/notes/${noteId}`;
 
+    const actor = await this.userRepository.findOne({ where: { id: commenterId } });
+    const actorName = actor?.name?.split(' ')[0] || 'Someone';
+
     // 1. Reply to a comment — notify parent comment author
     if (dto.parent_id) {
       const parent = await this.reviewRepository.findOne({
@@ -117,8 +120,8 @@ export class ReviewsService {
           userId: parent.user_id,
           actorId: commenterId,
           type: NotificationType.COMMENT_REPLY,
-          title: 'Someone replied to your comment',
-          message: `${parent.user.name?.split(' ')[0] || 'Someone'} replied to your comment on "${note.title}".`,
+          title: `${actorName} replied to your comment`,
+          message: `${actorName} replied to your comment on "${note.title}".`,
           entityType: 'review',
           entityId: review.id,
           redirectUrl: `${noteUrl}?comment=${review.id}`,
@@ -132,8 +135,8 @@ export class ReviewsService {
         userId: note.uploader_id,
         actorId: commenterId,
         type: NotificationType.NOTE_COMMENT,
-        title: 'Someone commented on your note',
-        message: `A new comment was posted on your note "${note.title}".`,
+        title: `${actorName} commented on your note`,
+        message: `${actorName} left a new comment on "${note.title}".`,
         entityType: 'note',
         entityId: noteId,
         redirectUrl: noteUrl,
@@ -155,8 +158,8 @@ export class ReviewsService {
               userId: mentioned.id,
               actorId: commenterId,
               type: NotificationType.MENTION,
-              title: 'You were mentioned in a comment',
-              message: `You were mentioned in a comment on "${note.title}".`,
+              title: `${actorName} mentioned you`,
+              message: `${actorName} mentioned you in a comment on "${note.title}".`,
               entityType: 'review',
               entityId: review.id,
               redirectUrl: `${noteUrl}?comment=${review.id}`,
