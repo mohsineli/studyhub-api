@@ -21,17 +21,16 @@ export class NotificationsService {
     redirectUrl?: string;
     metadata?: Record<string, any>;
   }): Promise<Notification> {
-    const notification = this.notificationRepository.create({
-      user_id: data.userId,
-      actor_id: data.actorId ?? null,
-      type: data.type,
-      title: data.title,
-      message: data.message ?? null,
-      entity_type: data.entityType,
-      entity_id: data.entityId ?? null,
-      redirect_url: data.redirectUrl ?? null,
-      metadata: data.metadata ?? null,
-    });
+    const notification = new Notification();
+    notification.user_id = data.userId;
+    notification.actor_id = data.actorId ?? null;
+    notification.type = data.type;
+    notification.title = data.title;
+    notification.message = data.message ?? null;
+    notification.entity_type = data.entityType;
+    notification.entity_id = data.entityId ?? null;
+    notification.redirect_url = data.redirectUrl ?? null;
+    notification.metadata = data.metadata ?? null;
     return this.notificationRepository.save(notification);
   }
 
