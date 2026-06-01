@@ -1,14 +1,15 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, IsNull } from 'typeorm';
+import { Repository, In, IsNull, Like } from 'typeorm';
 import { Review } from './entities/review.entity';
 import { ReviewLike } from './entities/review-like.entity';
 import { Note } from '../notes/entities/note.entity';
 import { User } from '../users/entities/user.entity';
 import { RedisService } from '../redis/redis.service';
-import { CreateReviewDto } from './dto/create-review.dto';
-import { UpdateCommentDto } from './dto/update-comment.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/entities/notification.entity';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 
 @Injectable()
 export class ReviewsService {
@@ -22,6 +23,7 @@ export class ReviewsService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly redisService: RedisService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async submitRating(userId: number, noteId: number, rating: number) {
@@ -84,7 +86,85 @@ export class ReviewsService {
     });
 
     await this.reviewRepository.save(review);
+
+    await this.triggerCommentNotifications(userId, noteId, review, dto);
+
     return review;
+  }
+
+  private async triggerCommentNotifications(
+    commenterId: number,
+    noteId: number,
+    review: Review,
+    dto: CreateCommentDto,
+  ): Promise<void> {
+    const note = await this.noteRepository.findOne({
+      where: { id: noteId },
+      relations: ['uploader'],
+    });
+    if (!note) return;
+
+    const noteUrl = `/notes/${noteId}`;
+
+    // 1. Reply to a comment — notify parent comment author
+    if (dto.parent_id) {
+      const parent = await this.reviewRepository.findOne({
+        where: { id: dto.parent_id },
+        relations: ['user'],
+      });
+      if (parent && parent.user_id !== commenterId && parent.user) {
+        await this.notificationsService.create({
+          userId: parent.user_id,
+          actorId: commenterId,
+          type: NotificationType.COMMENT_REPLY,
+          title: 'Someone replied to your comment',
+          message: `${parent.user.name?.split(' ')[0] || 'Someone'} replied to your comment on "${note.title}".`,
+          entityType: 'review',
+          entityId: review.id,
+          redirectUrl: `${noteUrl}?comment=${review.id}`,
+        });
+      }
+    }
+
+    // 2. Comment on a note — notify note owner
+    if (!dto.parent_id && note.uploader_id !== commenterId) {
+      await this.notificationsService.create({
+        userId: note.uploader_id,
+        actorId: commenterId,
+        type: NotificationType.NOTE_COMMENT,
+        title: 'Someone commented on your note',
+        message: `A new comment was posted on your note "${note.title}".`,
+        entityType: 'note',
+        entityId: noteId,
+        redirectUrl: noteUrl,
+      });
+    }
+
+    // 3. Parse @mentions in the comment
+    if (dto.comment) {
+      const mentionMatches = dto.comment.match(/@(\w+)/g);
+      if (mentionMatches) {
+        const mentionedNames = [...new Set(mentionMatches.map(m => m.slice(1).toLowerCase()))];
+        for (const name of mentionedNames) {
+          const mentionedUsers = await this.userRepository.find({
+            where: { name: Like(`%${name}%`) },
+          });
+          for (const mentioned of mentionedUsers) {
+            if (mentioned.id === commenterId) continue;
+            await this.notificationsService.create({
+              userId: mentioned.id,
+              actorId: commenterId,
+              type: NotificationType.MENTION,
+              title: 'You were mentioned in a comment',
+              message: `You were mentioned in a comment on "${note.title}".`,
+              entityType: 'review',
+              entityId: review.id,
+              redirectUrl: `${noteUrl}?comment=${review.id}`,
+            });
+          }
+        }
+      }
+    }
   }
 
   async updateById(userId: number, reviewId: number, updateCommentDto: UpdateCommentDto) {

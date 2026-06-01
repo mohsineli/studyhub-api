@@ -15,6 +15,7 @@ import { AdminModule } from './admin/admin.module';
 import { RedisModule } from './redis/redis.module';
 import { ThrottleConfigModule } from './redis/throttle-config.module';
 import { QueueModule } from './queue/queue.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { QueueModule } from './queue/queue.module';
     ReviewsModule,
     ResourcesModule,
     AdminModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

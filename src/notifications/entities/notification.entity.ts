@@ -1,0 +1,59 @@
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+
+export enum NotificationType {
+  COMMENT_REPLY = 'comment_reply',
+  MENTION = 'mention',
+  NOTE_APPROVED = 'note_approved',
+  NOTE_REJECTED = 'note_rejected',
+  NOTE_COMMENT = 'note_comment',
+  COMMUNITY_REPLY = 'community_reply',
+  COMMUNITY_MENTION = 'community_mention',
+  NOTE_LIKE = 'note_like',
+  COMMENT_LIKE = 'comment_like',
+  NOTE_DOWNLOAD = 'note_download',
+  SYSTEM = 'system',
+}
+
+@Entity('notifications')
+@Index(['user_id', 'is_read', 'created_at'])
+@Index(['user_id', 'created_at'])
+export class Notification {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  user_id: number;
+
+  @Column({ nullable: true })
+  actor_id: number;
+
+  @Column({ length: 50 })
+  type: string;
+
+  @Column({ length: 255 })
+  title: string;
+
+  @Column({ type: 'text', nullable: true })
+  message: string;
+
+  @Column({ length: 50 })
+  entity_type: string;
+
+  @Column({ nullable: true })
+  entity_id: number;
+
+  @Column({ type: 'text', nullable: true })
+  redirect_url: string;
+
+  @Column({ default: false })
+  is_read: boolean;
+
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: Record<string, any>;
+
+  @CreateDateColumn()
+  created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
+}

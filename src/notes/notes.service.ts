@@ -8,6 +8,8 @@ import { NoteReaction } from './entities/note-reaction.entity';
 import { User } from '../users/entities/user.entity';
 import { AdminService } from '../admin/admin.service';
 import { RedisService } from '../redis/redis.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/entities/notification.entity';
 
 @Injectable()
 export class NotesService {
@@ -20,6 +22,7 @@ export class NotesService {
     private readonly userRepository: Repository<User>,
     private readonly adminService: AdminService,
     private readonly redisService: RedisService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createNoteDto: CreateNoteDto, uploaderId: number) {
@@ -177,6 +180,27 @@ export class NotesService {
     if (status === NoteStatus.APPROVED) {
       await this.userRepository.increment({ id: note.uploader_id }, 'points', 10);
       await this.redisService.delByPattern('leaderboard:*');
+      await this.notificationsService.create({
+        userId: note.uploader_id,
+        type: NotificationType.NOTE_APPROVED,
+        title: 'Your note has been approved',
+        message: `"${note.title}" has been approved and is now visible to everyone.`,
+        entityType: 'note',
+        entityId: id,
+        redirectUrl: `/notes/${id}`,
+      });
+    }
+
+    if (status === NoteStatus.REJECTED) {
+      await this.notificationsService.create({
+        userId: note.uploader_id,
+        type: NotificationType.NOTE_REJECTED,
+        title: 'Your note has been rejected',
+        message: `"${note.title}" was not approved. Please review the guidelines and resubmit.`,
+        entityType: 'note',
+        entityId: id,
+        redirectUrl: `/notes/${id}`,
+      });
     }
 
     await this.redisService.delByPattern('notes:*');
