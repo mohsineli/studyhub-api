@@ -25,7 +25,7 @@ export class Notification {
   user_id: number;
 
   @Column({ nullable: true })
-  actor_id: number;
+  actor_id: number | null;
 
   @Column({ length: 50 })
   type: string;
@@ -34,22 +34,22 @@ export class Notification {
   title: string;
 
   @Column({ type: 'text', nullable: true })
-  message: string;
+  message: string | null;
 
   @Column({ length: 50 })
   entity_type: string;
 
   @Column({ nullable: true })
-  entity_id: number;
+  entity_id: number | null;
 
   @Column({ type: 'text', nullable: true })
-  redirect_url: string;
+  redirect_url: string | null;
 
   @Column({ default: false })
   is_read: boolean;
 
   @Column({ type: 'jsonb', nullable: true })
-  metadata: Record<string, any>;
+  metadata: Record<string, any> | null;
 
   @CreateDateColumn()
   created_at: Date;
