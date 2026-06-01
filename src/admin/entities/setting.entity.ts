@@ -5,6 +5,6 @@ export class Setting {
   @PrimaryColumn({ length: 50 })
   key: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true })
   value: string;
 }
