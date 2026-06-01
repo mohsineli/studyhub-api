@@ -33,7 +33,9 @@ import { NotificationsModule } from './notifications/notifications.module';
             type: 'postgres',
             url: dbUrl,
             autoLoadEntities: true,
-            synchronize: true,
+            synchronize: false,
+            migrations: ['src/migrations/*.ts'],
+            migrationsTableName: 'migrations',
             ssl: { rejectUnauthorized: false },
           };
         }
@@ -46,7 +48,9 @@ import { NotificationsModule } from './notifications/notifications.module';
           password: configService.get<string>('DATABASE_PASSWORD'),
           database: configService.get<string>('DATABASE_NAME'),
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize: false,
+          migrations: ['src/migrations/*.ts'],
+          migrationsTableName: 'migrations',
           ssl: configService.get<string>('DATABASE_HOST') !== 'localhost' ? { rejectUnauthorized: false } : false,
         };
       },
