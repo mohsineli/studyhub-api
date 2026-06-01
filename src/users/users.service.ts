@@ -76,6 +76,7 @@ export class UsersService {
         .loadRelationCountAndMap('user.noteCount', 'user.notes', 'note', qb =>
           qb.andWhere('note.status = :status', { status: NoteStatus.APPROVED })
         )
+        .where('user.banned = :banned', { banned: false })
         .orderBy('user.points', 'DESC')
         .addOrderBy('user.name', 'ASC')
         .take(30);
@@ -98,12 +99,19 @@ export class UsersService {
     const leaders = await this.usersRepository
       .createQueryBuilder('user')
       .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
+      .where('user.banned = :banned', { banned: false })
       .orderBy('user.points', 'DESC')
       .addOrderBy('user.name', 'ASC')
       .take(30)
       .getMany();
 
-    const snapshot = JSON.stringify(leaders);
+    const clean = leaders.map(u => ({
+      id: u.id, name: u.name, email: u.email, role: u.role,
+      banned: u.banned, points: u.points, created_at: u.created_at,
+      profile_pic: u.profile_pic, dept: u.dept, noteCount: 0,
+    }));
+
+    const snapshot = JSON.stringify(clean);
     let setting = await this.settingRepository.findOne({ where: { key: 'leaderboard_previous_snapshot' } });
     if (!setting) {
       setting = this.settingRepository.create({ key: 'leaderboard_previous_snapshot', value: snapshot });
