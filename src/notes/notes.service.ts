@@ -169,9 +169,6 @@ export class NotesService {
   }
 
   async updateStatus(id: number, status: NoteStatus, userRole?: string) {
-    if (userRole && userRole !== 'admin') {
-      await this.adminService.enforcePermission(userRole, 'perm_manage_notes');
-    }
     const note = await this.findOne(id);
     note.status = status;
     await this.noteRepository.save(note);

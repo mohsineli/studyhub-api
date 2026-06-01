@@ -11,11 +11,8 @@ import { RedisService } from '../redis/redis.service';
 
 export const MODERATOR_PERMISSIONS = [
   { key: 'perm_view_active_users', label: 'Active Users', description: 'View active user statistics' },
-  { key: 'perm_manage_notes', label: 'Notes Moderation', description: 'Approve or reject note submissions' },
-  { key: 'perm_manage_resources', label: 'Resources Moderation', description: 'Approve or reject resource submissions' },
   { key: 'perm_view_users', label: 'User Directory', description: 'View registered users directory' },
   { key: 'perm_view_resources', label: 'Library Resources', description: 'View library resources list' },
-  { key: 'perm_manage_trending', label: 'Trending Content', description: 'View and manage trending content' },
 ];
 
 @Injectable()
