@@ -12,6 +12,8 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { LeaderboardService } from './leaderboard.service';
+import { ActivityService } from './activity.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -23,7 +25,11 @@ import { UserRole } from './entities/user.entity';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly leaderboardService: LeaderboardService,
+    private readonly activityService: ActivityService,
+  ) {}
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
@@ -39,7 +45,7 @@ export class UsersController {
   @Get('leaderboard')
   @Roles(UserRole.STUDENT, UserRole.ADMIN, UserRole.MODERATOR)
   getLeaderboard(@Query('period') period?: string) {
-    return this.usersService.getLeaderboard(period);
+    return this.leaderboardService.getLeaderboard(period);
   }
 
   @Get(':id/public-profile')
@@ -58,7 +64,7 @@ export class UsersController {
      @Query('page') page?: number,
      @Query('limit') limit?: number,
    ) {
-     return this.usersService.findActiveUsersByDay(req.user.role, date, page, limit);
+     return this.activityService.findActiveUsersByDay(req.user.role, date, page, limit);
    }
 
    @Get('active/now')
@@ -69,7 +75,7 @@ export class UsersController {
      @Query('page') page?: number,
      @Query('limit') limit?: number,
    ) {
-     return this.usersService.findCurrentlyActiveUsers(req.user.role, minutes, page, limit);
+     return this.activityService.findCurrentlyActiveUsers(req.user.role, minutes, page, limit);
    }
 
   @Post(':id/ban')

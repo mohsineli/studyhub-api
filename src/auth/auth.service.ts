@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as Express from 'express';
 import { UsersService } from '../users/users.service';
+import { ActivityService } from '../users/activity.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
@@ -23,6 +24,7 @@ import * as crypto from 'crypto';
 export class AuthService {
   constructor(
     private usersService: UsersService,
+    private activityService: ActivityService,
     private jwtService: JwtService,
     private configService: ConfigService,
     @InjectRepository(Session)
@@ -221,7 +223,7 @@ export class AuthService {
     await this.cacheSession(session, hashedRefreshToken);
 
     // Explicitly update last_active_at on login so it's instantly recorded
-    await this.usersService.updateLastActive(user.id);
+    await this.activityService.updateLastActive(user.id);
 
     this.setRefreshTokenCookie(res, refresh_token, req);
 

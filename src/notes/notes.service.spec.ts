@@ -5,7 +5,6 @@ import { NotesService } from './notes.service';
 import { Note, NoteStatus } from './entities/note.entity';
 import { NoteReaction } from './entities/note-reaction.entity';
 import { User, UserRole } from '../users/entities/user.entity';
-import { AdminService } from '../admin/admin.service';
 import { RedisService } from '../redis/redis.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/entities/notification.entity';
@@ -61,10 +60,6 @@ describe('NotesService', () => {
           useValue: {
             increment: jest.fn(),
           },
-        },
-        {
-          provide: AdminService,
-          useValue: {},
         },
         {
           provide: RedisService,

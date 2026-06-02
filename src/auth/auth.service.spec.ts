@@ -7,6 +7,7 @@ import { getQueueToken } from '@nestjs/bullmq';
 import * as crypto from 'crypto';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { ActivityService } from '../users/activity.service';
 import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
 import { Session } from './entities/session.entity';
@@ -21,6 +22,7 @@ jest.mock('bcrypt', () => ({
 describe('AuthService', () => {
   let service: AuthService;
   let usersService: jest.Mocked<UsersService>;
+  let activityService: jest.Mocked<ActivityService>;
   let sessionRepository: jest.Mocked<any>;
   let pendingUserRepository: jest.Mocked<any>;
   let emailQueue: jest.Mocked<any>;
@@ -47,13 +49,18 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         {
+          provide: ActivityService,
+          useValue: {
+            updateLastActive: jest.fn(),
+          },
+        },
+        {
           provide: UsersService,
           useValue: {
             findByEmail: jest.fn(),
             findOne: jest.fn(),
             create: jest.fn(),
             update: jest.fn(),
-            updateLastActive: jest.fn(),
           },
         },
         {
@@ -125,6 +132,7 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
     usersService = module.get(UsersService) as jest.Mocked<UsersService>;
+    activityService = module.get(ActivityService) as jest.Mocked<ActivityService>;
     sessionRepository = module.get(getRepositoryToken(Session)) as jest.Mocked<any>;
     pendingUserRepository = module.get(getRepositoryToken(PendingUser)) as jest.Mocked<any>;
     emailQueue = module.get(getQueueToken('email')) as jest.Mocked<any>;
@@ -245,7 +253,7 @@ describe('AuthService', () => {
       usersService.findByEmail.mockResolvedValue(mockUser as any);
       sessionRepository.create.mockReturnValue({});
       sessionRepository.save.mockResolvedValue({});
-      usersService.updateLastActive.mockResolvedValue(undefined as any);
+      activityService.updateLastActive.mockResolvedValue(undefined as any);
 
       const result = await service.login(loginDto, mockReq, mockRes);
 

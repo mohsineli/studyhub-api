@@ -6,7 +6,6 @@ import { UpdateNoteDto } from './dto/update-note.dto';
 import { Note, NoteStatus } from './entities/note.entity';
 import { NoteReaction } from './entities/note-reaction.entity';
 import { User } from '../users/entities/user.entity';
-import { AdminService } from '../admin/admin.service';
 import { RedisService } from '../redis/redis.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/entities/notification.entity';
@@ -20,7 +19,6 @@ export class NotesService {
     private readonly noteReactionRepository: Repository<NoteReaction>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    private readonly adminService: AdminService,
     private readonly redisService: RedisService,
     private readonly notificationsService: NotificationsService,
   ) {}

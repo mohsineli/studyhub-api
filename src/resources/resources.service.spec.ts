@@ -3,13 +3,13 @@ import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ResourcesService } from './resources.service';
 import { Resource, ResourceStatus } from './entities/resource.entity';
-import { AdminService } from '../admin/admin.service';
+import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
 
 describe('ResourcesService', () => {
   let service: ResourcesService;
   let resourceRepository: jest.Mocked<any>;
-  let adminService: jest.Mocked<AdminService>;
+  let settingsService: jest.Mocked<SettingsService>;
   let redisService: jest.Mocked<RedisService>;
 
   const mockResource = {
@@ -43,7 +43,7 @@ describe('ResourcesService', () => {
           },
         },
         {
-          provide: AdminService,
+          provide: SettingsService,
           useValue: {
             getSetting: jest.fn().mockResolvedValue('approved'),
           },
@@ -63,7 +63,7 @@ describe('ResourcesService', () => {
 
     service = module.get<ResourcesService>(ResourcesService);
     resourceRepository = module.get(getRepositoryToken(Resource)) as jest.Mocked<any>;
-    adminService = module.get(AdminService) as jest.Mocked<AdminService>;
+    settingsService = module.get(SettingsService) as jest.Mocked<SettingsService>;
     redisService = module.get(RedisService) as jest.Mocked<RedisService>;
   });
 
@@ -80,7 +80,7 @@ describe('ResourcesService', () => {
     };
 
     it('should create an approved resource when visibility setting is "approved"', async () => {
-      adminService.getSetting.mockResolvedValue('approved');
+      settingsService.getSetting.mockResolvedValue('approved');
       resourceRepository.create.mockReturnValue(mockResource);
       resourceRepository.save.mockResolvedValue(mockResource);
 
@@ -93,7 +93,7 @@ describe('ResourcesService', () => {
     });
 
     it('should create a pending resource when visibility setting is "pending"', async () => {
-      adminService.getSetting.mockResolvedValue('pending');
+      settingsService.getSetting.mockResolvedValue('pending');
       resourceRepository.create.mockImplementation((data: any) => data);
       resourceRepository.save.mockImplementation((data: any) => data);
 
@@ -103,7 +103,7 @@ describe('ResourcesService', () => {
     });
 
     it('should invalidate resource cache on create', async () => {
-      adminService.getSetting.mockResolvedValue('approved');
+      settingsService.getSetting.mockResolvedValue('approved');
       resourceRepository.create.mockReturnValue(mockResource);
       resourceRepository.save.mockResolvedValue(mockResource);
 

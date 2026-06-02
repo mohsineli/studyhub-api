@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Resource, ResourceStatus } from './entities/resource.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
-import { AdminService } from '../admin/admin.service';
+import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
 
 @Injectable()
@@ -12,13 +12,13 @@ export class ResourcesService {
   constructor(
     @InjectRepository(Resource)
     private readonly resourceRepository: Repository<Resource>,
-    private readonly adminService: AdminService,
+    private readonly settingsService: SettingsService,
     private readonly redisService: RedisService,
   ) {}
 
   async create(createResourceDto: CreateResourceDto, uploaderId: number): Promise<Resource> {
     // Check global setting 'resource_upload_visibility'
-    const visibility = await this.adminService.getSetting('resource_upload_visibility', 'approved');
+    const visibility = await this.settingsService.getSetting('resource_upload_visibility', 'approved');
     const status = visibility === 'pending' ? ResourceStatus.PENDING : ResourceStatus.APPROVED;
 
     const resource = this.resourceRepository.create({
