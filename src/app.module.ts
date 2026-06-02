@@ -27,7 +27,9 @@ import { NoteEventsListener } from './common/events/note-events.listener';
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({
+        DATABASE_TYPE: Joi.string().valid('postgres', 'sqlite').default('postgres'),
         DATABASE_URL: Joi.string().uri().optional(),
+        DATABASE: Joi.string().optional(),
         DATABASE_HOST: Joi.string().hostname().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
         DATABASE_PORT: Joi.number().port().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
         DATABASE_USERNAME: Joi.string().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
