@@ -12,9 +12,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
+    let details: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -23,13 +25,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exResponse
         : (exResponse as any).message || exception.message;
       if (Array.isArray(message)) message = message[0];
+    } else if (exception instanceof Error) {
+      details = process.env.NODE_ENV !== 'production'
+        ? exception.stack || exception.message
+        : undefined;
     }
 
-    response.status(status).json({
+    const payload: Record<string, unknown> = {
       statusCode: status,
       message,
       timestamp: new Date().toISOString(),
-      path: ctx.getRequest().url,
-    });
+      path: request.url,
+      method: request.method,
+    };
+
+    if (details) {
+      payload.details = details;
+    }
+
+    response.status(status).json(payload);
   }
 }
