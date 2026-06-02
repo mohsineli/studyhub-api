@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
+import * as Joi from 'joi';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -21,6 +22,26 @@ import { NotificationsModule } from './notifications/notifications.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: Joi.object({
+        DATABASE_URL: Joi.string().uri().optional(),
+        DATABASE_HOST: Joi.string().hostname().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        DATABASE_PORT: Joi.number().port().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        DATABASE_USERNAME: Joi.string().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        DATABASE_PASSWORD: Joi.string().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        DATABASE_NAME: Joi.string().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        JWT_ACCESS_SECRET: Joi.string().min(16).required(),
+        JWT_REFRESH_SECRET: Joi.string().min(16).required(),
+        FRONTEND_URL: Joi.string().uri().required(),
+        REDIS_URL: Joi.string().uri().optional(),
+        REDIS_HOST: Joi.string().hostname().when('REDIS_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        REDIS_PORT: Joi.number().port().when('REDIS_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        MAIL_HOST: Joi.string().hostname().optional(),
+        MAIL_PORT: Joi.number().port().optional(),
+        MAIL_USER: Joi.string().optional(),
+        MAIL_CLIENT_ID: Joi.string().optional(),
+        MAIL_CLIENT_SECRET: Joi.string().optional(),
+        MAIL_REFRESH_TOKEN: Joi.string().optional(),
+      }),
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

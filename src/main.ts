@@ -3,7 +3,9 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import * as dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import * as dns from 'dns';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 dotenv.config();
 dns.setDefaultResultOrder('ipv4first'); // Force IPv4 to prevent ENETUNREACH on Render
@@ -18,6 +20,9 @@ process.emitWarning = function (warning, ...args) {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Security headers
+  app.use(helmet());
 
   // Enable cookie parsing — required for reading refresh_token cookie
   app.use(cookieParser());
@@ -40,6 +45,9 @@ async function bootstrap() {
     },
     credentials: true, // Required for HttpOnly cookies
   });
+
+  // Global exception filter
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Global validation pipe
   app.useGlobalPipes(new ValidationPipe({
