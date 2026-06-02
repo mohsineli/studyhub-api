@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { getQueueToken } from '@nestjs/bullmq';
 import * as crypto from 'crypto';
 import { AuthService } from './auth.service';
+import { TokenService } from './token.service';
+import { SessionService } from './session.service';
 import { UsersService } from '../users/users.service';
 import { ActivityService } from '../users/activity.service';
 import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
-import { Session } from './entities/session.entity';
 import { PendingUser } from './entities/pending-user.entity';
 import { UserRole } from '../users/entities/user.entity';
 
@@ -21,9 +21,10 @@ jest.mock('bcrypt', () => ({
 
 describe('AuthService', () => {
   let service: AuthService;
+  let tokenService: jest.Mocked<TokenService>;
+  let sessionService: jest.Mocked<SessionService>;
   let usersService: jest.Mocked<UsersService>;
   let activityService: jest.Mocked<ActivityService>;
-  let sessionRepository: jest.Mocked<any>;
   let pendingUserRepository: jest.Mocked<any>;
   let emailQueue: jest.Mocked<any>;
   let mailService: jest.Mocked<MailService>;
@@ -64,9 +65,22 @@ describe('AuthService', () => {
           },
         },
         {
-          provide: JwtService,
+          provide: TokenService,
           useValue: {
-            sign: jest.fn().mockReturnValue('mock_token'),
+            generateAccessToken: jest.fn().mockReturnValue('mock_access_token'),
+            generateRefreshToken: jest.fn().mockReturnValue('mock_refresh_token'),
+            setRefreshTokenCookie: jest.fn(),
+            clearRefreshTokenCookie: jest.fn(),
+          },
+        },
+        {
+          provide: SessionService,
+          useValue: {
+            create: jest.fn().mockResolvedValue({}),
+            findByToken: jest.fn(),
+            updateToken: jest.fn().mockResolvedValue({}),
+            remove: jest.fn().mockResolvedValue(undefined),
+            removeAllByUser: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -79,21 +93,12 @@ describe('AuthService', () => {
                 JWT_ACCESS_EXPIRATION: '15m',
                 JWT_REFRESH_EXPIRATION: '7d',
                 FRONTEND_URL: 'http://localhost:3000',
+                BCRYPT_SALT_ROUNDS: '10',
+                OTP_EXPIRATION_MINUTES: '10',
+                SESSION_DURATION_DAYS: '7',
               };
               return config[key];
             }),
-          },
-        },
-        {
-          provide: getRepositoryToken(Session),
-          useValue: {
-            create: jest.fn(),
-            save: jest.fn(),
-            find: jest.fn(),
-            findOne: jest.fn(),
-            findOneBy: jest.fn(),
-            remove: jest.fn(),
-            delete: jest.fn(),
           },
         },
         {
@@ -131,9 +136,10 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
+    tokenService = module.get(TokenService) as jest.Mocked<TokenService>;
+    sessionService = module.get(SessionService) as jest.Mocked<SessionService>;
     usersService = module.get(UsersService) as jest.Mocked<UsersService>;
     activityService = module.get(ActivityService) as jest.Mocked<ActivityService>;
-    sessionRepository = module.get(getRepositoryToken(Session)) as jest.Mocked<any>;
     pendingUserRepository = module.get(getRepositoryToken(PendingUser)) as jest.Mocked<any>;
     emailQueue = module.get(getQueueToken('email')) as jest.Mocked<any>;
     mailService = module.get(MailService) as jest.Mocked<MailService>;
@@ -251,16 +257,16 @@ describe('AuthService', () => {
     it('should login successfully and return tokens', async () => {
       bcrypt.compare.mockResolvedValue(true);
       usersService.findByEmail.mockResolvedValue(mockUser as any);
-      sessionRepository.create.mockReturnValue({});
-      sessionRepository.save.mockResolvedValue({});
       activityService.updateLastActive.mockResolvedValue(undefined as any);
 
       const result = await service.login(loginDto, mockReq, mockRes);
 
-      expect(result.access_token).toBe('mock_token');
-      expect(result.refresh_token).toBe('mock_token');
+      expect(result.access_token).toBe('mock_access_token');
+      expect(result.refresh_token).toBe('mock_refresh_token');
       expect(result.user).toBeDefined();
       expect(result.user.email).toBe('test@example.com');
+      expect(sessionService.create).toHaveBeenCalled();
+      expect(tokenService.setRefreshTokenCookie).toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException for wrong email', async () => {
@@ -295,23 +301,23 @@ describe('AuthService', () => {
     };
 
     it('should refresh tokens successfully', async () => {
-      redisService.get.mockResolvedValue(null);
-      sessionRepository.find.mockResolvedValue([mockSession]);
+      sessionService.findByToken.mockResolvedValue(mockSession as any);
       usersService.findOne.mockResolvedValue(mockUser as any);
-      sessionRepository.save.mockResolvedValue({});
 
       const result = await service.refreshTokens(1, rawToken, mockReq, mockRes);
 
-      expect(result.access_token).toBe('mock_token');
-      expect(result.refresh_token).toBe('mock_token');
+      expect(result.access_token).toBe('mock_access_token');
+      expect(result.refresh_token).toBe('mock_refresh_token');
+      expect(tokenService.generateAccessToken).toHaveBeenCalled();
+      expect(tokenService.generateRefreshToken).toHaveBeenCalled();
+      expect(sessionService.updateToken).toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException for expired session', async () => {
-      redisService.get.mockResolvedValue(null);
-      sessionRepository.find.mockResolvedValue([{
+      sessionService.findByToken.mockResolvedValue({
         ...mockSession,
         expires_at: new Date(Date.now() - 86400000),
-      }]);
+      } as any);
 
       await expect(service.refreshTokens(1, rawToken, mockReq, mockRes)).rejects.toThrow(UnauthorizedException);
     });
@@ -323,21 +329,20 @@ describe('AuthService', () => {
     const mockRes = { clearCookie: jest.fn() } as any;
 
     it('should logout and remove session', async () => {
-      sessionRepository.find.mockResolvedValue([{ refresh_token: hashedToken }]);
-      sessionRepository.remove.mockResolvedValue(undefined);
+      sessionService.findByToken.mockResolvedValue({ refresh_token: hashedToken } as any);
 
       const result = await service.logout(1, rawToken, mockRes);
 
-      expect(sessionRepository.remove).toHaveBeenCalled();
+      expect(sessionService.remove).toHaveBeenCalled();
       expect(result.message).toContain('Logged out');
     });
 
     it('should handle logout when no matching session found', async () => {
-      sessionRepository.find.mockResolvedValue([]);
+      sessionService.findByToken.mockResolvedValue(null);
 
       const result = await service.logout(1, rawToken, mockRes);
 
-      expect(sessionRepository.remove).not.toHaveBeenCalled();
+      expect(sessionService.remove).not.toHaveBeenCalled();
       expect(result.message).toContain('Logged out');
     });
   });
@@ -370,12 +375,11 @@ describe('AuthService', () => {
       const userWithOtp = { ...mockUser, otp: '123456', otp_expires_at: new Date(Date.now() + 600000) };
       usersService.findByEmail.mockResolvedValue(userWithOtp as any);
       usersService.update.mockResolvedValue(userWithOtp as any);
-      sessionRepository.delete.mockResolvedValue({ affected: 2 });
 
       const result = await service.resetPassword(resetDto);
 
       expect(usersService.update).toHaveBeenCalled();
-      expect(sessionRepository.delete).toHaveBeenCalledWith({ userId: 1 });
+      expect(sessionService.removeAllByUser).toHaveBeenCalledWith(1);
       expect(result.message).toContain('Password reset successfully');
     });
 
