@@ -84,13 +84,18 @@ export class AuthService {
     return frontendUrl.startsWith('https');
   }
 
+  private get sessionDays(): number {
+    return this.configService.get<number>('SESSION_DURATION_DAYS', 7);
+  }
+
   setRefreshTokenCookie(res: Express.Response, refreshToken: string, req?: Express.Request): void {
     const isProduction = this.isProd(req);
+    const maxAge = this.sessionDays * 24 * 60 * 60 * 1000;
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
-      secure: isProduction, // MUST be true for cross-domain production HTTPS, false for local HTTP
-      sameSite: isProduction ? 'none' : 'lax', // 'none' for production cross-domain, 'lax' for local
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge,
     });
   }
 
@@ -210,7 +215,7 @@ export class AuthService {
 
     const hashedRefreshToken = crypto.createHash('sha256').update(refresh_token).digest('hex');
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    expiresAt.setDate(expiresAt.getDate() + this.sessionDays);
 
     const session = this.sessionRepository.create({
       refresh_token: hashedRefreshToken,
@@ -265,7 +270,7 @@ export class AuthService {
 
     currentSession.refresh_token = crypto.createHash('sha256').update(new_refresh_token).digest('hex');
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    expiresAt.setDate(expiresAt.getDate() + this.sessionDays);
     currentSession.expires_at = expiresAt;
     
     await this.sessionRepository.save(currentSession);
@@ -311,8 +316,9 @@ export class AuthService {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpirationMinutes = this.configService.get<number>('OTP_EXPIRATION_MINUTES', 10);
     const otp_expires_at = new Date();
-    otp_expires_at.setMinutes(otp_expires_at.getMinutes() + 10);
+    otp_expires_at.setMinutes(otp_expires_at.getMinutes() + otpExpirationMinutes);
 
     await this.usersService.update(user.id, { otp, otp_expires_at });
 
@@ -359,7 +365,7 @@ export class AuthService {
   }
 
   private async cacheSession(session: Session, hashedToken: string): Promise<void> {
-    const ttl = 7 * 24 * 60 * 60; // 7 days in seconds
+    const ttl = this.sessionDays * 24 * 60 * 60;
     await this.redisService.set(this.sessionKey(session.userId, hashedToken), session, ttl);
   }
 

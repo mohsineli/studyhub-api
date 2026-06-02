@@ -42,6 +42,9 @@ import { RepositoriesModule } from './common/repositories/repositories.module';
         MAIL_CLIENT_ID: Joi.string().optional(),
         MAIL_CLIENT_SECRET: Joi.string().optional(),
         MAIL_REFRESH_TOKEN: Joi.string().optional(),
+        SESSION_DURATION_DAYS: Joi.number().min(1).max(365).default(7),
+        OTP_EXPIRATION_MINUTES: Joi.number().min(1).max(60).default(10),
+        ACTIVE_USER_WINDOW_MINUTES: Joi.number().min(1).max(1440).default(5),
       }),
     }),
     TypeOrmModule.forRootAsync({
