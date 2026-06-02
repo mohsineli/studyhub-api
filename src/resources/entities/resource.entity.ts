@@ -45,7 +45,7 @@ export class Resource {
   @Column({ length: 50, nullable: true })
   course_code: string;
 
-  @Column({ type: 'enum', enum: ResourceTerm, nullable: true })
+  @Column({ type: 'simple-enum', enum: ResourceTerm, nullable: true })
   term: ResourceTerm;
 
   @Column({ length: 255 })
@@ -62,7 +62,7 @@ export class Resource {
 
   @Index('idx_resources_status')
   @Column({
-    type: 'enum',
+    type: 'simple-enum',
     enum: ResourceStatus,
     default: ResourceStatus.PENDING,
   })

@@ -57,6 +57,17 @@ import { NoteEventsListener } from './common/events/note-events.listener';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
+        const dbType = configService.get<string>('DATABASE_TYPE', 'postgres');
+
+        if (dbType === 'sqlite') {
+          return {
+            type: 'better-sqlite3',
+            database: configService.get<string>('DATABASE', ':memory:'),
+            autoLoadEntities: true,
+            synchronize: true,
+          };
+        }
+
         const dbUrl = configService.get<string>('DATABASE_URL');
         
         if (dbUrl) {

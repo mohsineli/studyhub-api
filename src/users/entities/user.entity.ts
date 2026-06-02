@@ -24,7 +24,7 @@ export class User {
 
   @Index('idx_users_role')
   @Column({
-    type: 'enum',
+    type: 'simple-enum',
     enum: UserRole,
     default: UserRole.STUDENT,
   })

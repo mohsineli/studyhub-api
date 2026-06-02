@@ -52,7 +52,7 @@ export class Note {
 
   @Index('idx_notes_status')
   @Column({
-    type: 'enum',
+    type: 'simple-enum',
     enum: NoteStatus,
     default: NoteStatus.PENDING,
   })
