@@ -15,10 +15,10 @@ export class Session {
   @Column({ type: 'text', nullable: true })
   ip_address: string;
 
-  @Column({ type: 'timestamp' })
+  @Column()
   expires_at: Date;
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
+  @CreateDateColumn()
   created_at: Date;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })

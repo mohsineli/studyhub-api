@@ -25,6 +25,6 @@ export class NoteReaction {
   @Column({ length: 10 })
   reaction: string;
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
+  @CreateDateColumn()
   created_at: Date;
 }

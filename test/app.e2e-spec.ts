@@ -9,6 +9,7 @@ describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeAll(async () => {
+    process.env.NODE_ENV = 'test';
     process.env.DATABASE_TYPE = 'sqlite';
     process.env.DATABASE = ':memory:';
     process.env.FRONTEND_URL = 'http://localhost:3000';

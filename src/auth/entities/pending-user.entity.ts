@@ -25,9 +25,9 @@ export class PendingUser {
   @Column({ length: 6 })
   otp: string;
 
-  @Column({ type: 'timestamp' })
+  @Column()
   otp_expires_at: Date;
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
+  @CreateDateColumn()
   created_at: Date;
 }

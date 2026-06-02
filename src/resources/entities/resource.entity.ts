@@ -68,6 +68,6 @@ export class Resource {
   })
   status: ResourceStatus;
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
+  @CreateDateColumn()
   created_at: Date;
 }

@@ -25,6 +25,6 @@ export class ReviewLike {
   @Column({ type: 'varchar', length: 10 })
   type: 'like' | 'dislike';
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
+  @CreateDateColumn()
   created_at: Date;
 }
