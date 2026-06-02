@@ -48,6 +48,9 @@ import { NoteEventsListener } from './common/events/note-events.listener';
         SESSION_DURATION_DAYS: Joi.number().min(1).max(365).default(7),
         OTP_EXPIRATION_MINUTES: Joi.number().min(1).max(60).default(10),
         ACTIVE_USER_WINDOW_MINUTES: Joi.number().min(1).max(1440).default(5),
+        THROTTLE_TTL: Joi.number().min(1000).max(3600000).default(60000),
+        THROTTLE_LIMIT: Joi.number().min(1).max(10000).default(100),
+        BCRYPT_SALT_ROUNDS: Joi.number().min(4).max(16).default(10),
       }),
     }),
     TypeOrmModule.forRootAsync({

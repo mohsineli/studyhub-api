@@ -1,5 +1,6 @@
 import { Injectable, ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -16,6 +17,7 @@ export class UsersService {
     private usersRepository: Repository<User>,
     private readonly settingsService: SettingsService,
     private readonly redisService: RedisService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -116,7 +118,7 @@ export class UsersService {
   async update(id: number, updateUserDto: Partial<User>): Promise<User> {
     const user = await this.findOne(id);
     if (updateUserDto.password && !updateUserDto.password.startsWith('$2')) {
-      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, this.configService.get<number>('BCRYPT_SALT_ROUNDS', 10));
     }
     Object.assign(user, updateUserDto);
     const savedUser = await this.usersRepository.save(user);
@@ -145,7 +147,7 @@ export class UsersService {
         throw new BadRequestException('New password cannot be the same as your current password.');
       }
 
-      user.password = await bcrypt.hash(updateProfileDto.password, 10);
+      user.password = await bcrypt.hash(updateProfileDto.password, this.configService.get<number>('BCRYPT_SALT_ROUNDS', 10));
       changed = true;
     }
 

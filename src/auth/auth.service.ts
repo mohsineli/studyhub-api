@@ -118,12 +118,12 @@ export class AuthService {
     }
 
     const { password, role, ...userData } = createUserDto; // Extract role to ignore it
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, this.configService.get<number>('BCRYPT_SALT_ROUNDS', 10));
 
     // 2. Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date();
-    otpExpiresAt.setMinutes(otpExpiresAt.getMinutes() + 10);
+    otpExpiresAt.setMinutes(otpExpiresAt.getMinutes() + this.configService.get<number>('OTP_EXPIRATION_MINUTES', 10));
 
     // 3. Save to PendingUser (Upsert)
     let pendingUser = await this.pendingUserRepository.findOne({ where: { email: createUserDto.email } });
@@ -347,7 +347,7 @@ export class AuthService {
       throw new BadRequestException('OTP has expired. Please request a new one.');
     }
 
-    const hashedPassword = await bcrypt.hash(resetPasswordDto.newPassword, 10);
+    const hashedPassword = await bcrypt.hash(resetPasswordDto.newPassword, this.configService.get<number>('BCRYPT_SALT_ROUNDS', 10));
 
     await this.usersService.update(user.id, {
       password: hashedPassword,
