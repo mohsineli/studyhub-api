@@ -3,12 +3,14 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
+import { ActivityService } from '../users/activity.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
+    private activityService: ActivityService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -24,7 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     // Fire and forget updating last active timestamp
-    this.usersService.updateLastActive(user.id).catch(err => console.error('Failed to update last_active_at', err));
+    this.activityService.updateLastActive(user.id).catch(err => console.error('Failed to update last_active_at', err));
     return { 
       id: user.id, 
       email: user.email, 

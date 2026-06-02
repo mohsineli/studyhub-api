@@ -1,27 +1,24 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException, ForbiddenException, Inject } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThanOrEqual } from 'typeorm';
+import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserRole } from './entities/user.entity';
 import { NoteStatus } from '../notes/entities/note.entity';
-import { Session } from '../auth/entities/session.entity';
-import { AdminService } from '../admin/admin.service';
+import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
-import { Setting } from '../admin/entities/setting.entity';
+import { CACHE_KEYS } from '../common/constants/cache-keys';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-    @InjectRepository(Session)
-    private sessionRepository: Repository<Session>,
-    @InjectRepository(Setting)
-    private settingRepository: Repository<Setting>,
-    private readonly adminService: AdminService,
+    private readonly settingsService: SettingsService,
     private readonly redisService: RedisService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -39,7 +36,7 @@ export class UsersService {
 
   async findAll(options?: { search?: string; limit?: number; offset?: number }, userRole?: string): Promise<{ users: User[]; total: number }> {
     if (userRole && userRole !== UserRole.ADMIN) {
-      await this.adminService.enforcePermission(userRole, 'perm_view_users');
+      await this.settingsService.enforcePermission(userRole, 'perm_view_users');
     }
     const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
@@ -60,95 +57,6 @@ export class UsersService {
     return { users, total };
   }
 
-  async getLeaderboard(period?: string): Promise<(User & { noteCount: number })[]> {
-    if (period === 'previous') {
-      return this.getPreviousLeaderboard();
-    }
-
-    // Monthly points reset: demote users with 500+ points to 500 at the start of each month
-    await this.applyMonthlyReset();
-
-    const cacheKey = 'leaderboard:current';
-
-    return this.redisService.wrap(cacheKey, 300, async () => {
-      const query = this.usersRepository.createQueryBuilder('user')
-        .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
-        .loadRelationCountAndMap('user.noteCount', 'user.notes', 'note', qb =>
-          qb.andWhere('note.status = :status', { status: NoteStatus.APPROVED })
-        )
-        .where('user.banned = :banned', { banned: false })
-        .orderBy('user.points', 'DESC')
-        .addOrderBy('user.name', 'ASC')
-        .take(30);
-
-      return await query.getMany() as (User & { noteCount: number })[];
-    });
-  }
-
-  private async getPreviousLeaderboard(): Promise<(User & { noteCount: number })[]> {
-    try {
-      const setting = await this.settingRepository.findOne({ where: { key: 'leaderboard_previous_snapshot' } });
-      if (setting?.value) {
-        return JSON.parse(setting.value) as (User & { noteCount: number })[];
-      }
-    } catch {}
-    return [];
-  }
-
-  private async takeSnapshot() {
-    const leaders = await this.usersRepository
-      .createQueryBuilder('user')
-      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
-      .where('user.banned = :banned', { banned: false })
-      .orderBy('user.points', 'DESC')
-      .addOrderBy('user.name', 'ASC')
-      .take(30)
-      .getMany();
-
-    const clean = leaders.map(u => ({
-      id: u.id, name: u.name, email: u.email, role: u.role,
-      banned: u.banned, points: u.points, created_at: u.created_at,
-      profile_pic: u.profile_pic, dept: u.dept, noteCount: 0,
-    }));
-
-    const snapshot = JSON.stringify(clean);
-    let setting = await this.settingRepository.findOne({ where: { key: 'leaderboard_previous_snapshot' } });
-    if (!setting) {
-      setting = this.settingRepository.create({ key: 'leaderboard_previous_snapshot', value: snapshot });
-    } else {
-      setting.value = snapshot;
-    }
-    await this.settingRepository.save(setting);
-  }
-
-  private async applyMonthlyReset() {
-    const now = new Date();
-    const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
-
-    let resetSetting = await this.settingRepository.findOne({ where: { key: 'leaderboard_reset_month' } });
-
-    // First time or new month — take snapshot and reset
-    if (!resetSetting || resetSetting.value !== currentMonthKey) {
-      await this.takeSnapshot();
-
-      if (!resetSetting) {
-        resetSetting = this.settingRepository.create({ key: 'leaderboard_reset_month', value: currentMonthKey });
-      } else {
-        resetSetting.value = currentMonthKey;
-      }
-      await this.settingRepository.save(resetSetting);
-
-      await this.usersRepository
-        .createQueryBuilder()
-        .update(User)
-        .set({ points: 500 })
-        .where('points >= :max', { max: 500 })
-        .execute();
-
-      await this.redisService.delByPattern('leaderboard:*');
-    }
-  }
-
   async findOne(id: number): Promise<User> {
     const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) {
@@ -158,7 +66,7 @@ export class UsersService {
   }
 
   async getPublicProfile(id: number): Promise<any> {
-    return this.redisService.wrap(`user:profile:${id}`, 120, async () => {
+    return this.redisService.wrap(CACHE_KEYS.USER_PROFILE(id), 120, async () => {
       return this.fetchPublicProfile(id);
     });
   }
@@ -181,7 +89,6 @@ export class UsersService {
       throw new NotFoundException(`User not found`);
     }
 
-    // Compute leaderboard rank: position of this user among all users sorted by points DESC
     const rank = await this.usersRepository
       .createQueryBuilder('user')
       .where('user.points > :points', { points: user.points })
@@ -212,13 +119,13 @@ export class UsersService {
   async update(id: number, updateUserDto: Partial<User>): Promise<User> {
     const user = await this.findOne(id);
     if (updateUserDto.password && !updateUserDto.password.startsWith('$2')) {
-      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, this.configService.get<number>('BCRYPT_SALT_ROUNDS', 10));
     }
     Object.assign(user, updateUserDto);
     const savedUser = await this.usersRepository.save(user);
-    await this.redisService.delByPattern('leaderboard:*');
-    await this.redisService.delByPattern('activeUsers:*');
-    await this.redisService.delByPattern(`user:profile:${id}`);
+    await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
+    await this.redisService.delByPattern(CACHE_KEYS.ACTIVE_USERS_PATTERN);
+    await this.redisService.delByPattern(CACHE_KEYS.USER_PROFILE(id));
     return savedUser;
   }
 
@@ -226,12 +133,11 @@ export class UsersService {
     const user = await this.findOne(id);
     let changed = false;
 
-    // Check if new password is being set
     if (updateProfileDto.password) {
       if (!updateProfileDto.currentPassword) {
         throw new BadRequestException('Current password is required to change password.');
       }
-      
+
       const isMatch = await bcrypt.compare(updateProfileDto.currentPassword, user.password);
       if (!isMatch) {
         throw new BadRequestException('Current password is incorrect.');
@@ -242,11 +148,10 @@ export class UsersService {
         throw new BadRequestException('New password cannot be the same as your current password.');
       }
 
-      user.password = await bcrypt.hash(updateProfileDto.password, 10);
+      user.password = await bcrypt.hash(updateProfileDto.password, this.configService.get<number>('BCRYPT_SALT_ROUNDS', 10));
       changed = true;
     }
 
-    // Update other properties if provided and different
     if (updateProfileDto.name && updateProfileDto.name !== user.name) {
       user.name = updateProfileDto.name;
       changed = true;
@@ -268,7 +173,7 @@ export class UsersService {
       changed = true;
     }
 
-    ['github', 'linkedin', 'instagram', 'facebook'].forEach(field => {
+    (['github', 'linkedin', 'instagram', 'facebook'] as const).forEach(field => {
       if (updateProfileDto[field] !== undefined && updateProfileDto[field] !== user[field]) {
         user[field] = updateProfileDto[field];
         changed = true;
@@ -280,7 +185,7 @@ export class UsersService {
     }
 
     const updatedUser = await this.usersRepository.save(user);
-    await this.redisService.delByPattern(`user:profile:${id}`);
+    await this.redisService.delByPattern(CACHE_KEYS.USER_PROFILE(id));
     return updatedUser;
   }
 
@@ -299,8 +204,8 @@ export class UsersService {
     }
     user.banned = true;
     await this.usersRepository.save(user);
-    await this.redisService.delByPattern('leaderboard:*');
-    await this.redisService.delByPattern('activeUsers:*');
+    await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
+    await this.redisService.delByPattern(CACHE_KEYS.ACTIVE_USERS_PATTERN);
     return { message: `User "${user.name}" has been banned.` };
   }
 
@@ -308,8 +213,8 @@ export class UsersService {
     const user = await this.findOne(targetId);
     user.banned = false;
     await this.usersRepository.save(user);
-    await this.redisService.delByPattern('leaderboard:*');
-    await this.redisService.delByPattern('activeUsers:*');
+    await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
+    await this.redisService.delByPattern(CACHE_KEYS.ACTIVE_USERS_PATTERN);
     return { message: `User "${user.name}" has been unbanned.` };
   }
 
@@ -323,75 +228,8 @@ export class UsersService {
     }
     user.role = role;
     await this.usersRepository.save(user);
-    await this.redisService.delByPattern('leaderboard:*');
-    await this.redisService.delByPattern('activeUsers:*');
+    await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
+    await this.redisService.delByPattern(CACHE_KEYS.ACTIVE_USERS_PATTERN);
     return { message: `User "${user.name}" role updated to "${role}".` };
-  }
-
-  async updateLastActive(id: number): Promise<void> {
-    await this.usersRepository
-      .createQueryBuilder()
-      .update(User)
-      .set({ last_active_at: () => 'NOW()' })
-      .where('id = :id', { id })
-      .execute();
-
-    await this.redisService.delByPattern('activeUsers:*');
-  }
-
-  async findActiveUsersByDay(userRole: string, dateString?: string, page?: number, limit?: number) {
-    if (userRole !== UserRole.ADMIN) {
-      await this.adminService.enforcePermission(userRole, 'perm_view_active_users');
-    }
-    let dateStr = dateString;
-    if (!dateStr) {
-      const d = new Date();
-      const year = d.getUTCFullYear();
-      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(d.getUTCDate()).padStart(2, '0');
-      dateStr = `${year}-${month}-${day}`;
-    }
-
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
-
-    // Find users who had a session (login) on the given date — accurate for historical queries
-    const sessionSubquery = this.sessionRepository
-      .createQueryBuilder('session')
-      .select('DISTINCT session.userId')
-      .where("TO_CHAR(session.created_at, 'YYYY-MM-DD') = :dateStr", { dateStr });
-
-    const query = this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
-      .where(`user.id IN (${sessionSubquery.getQuery()})`)
-      .setParameters(sessionSubquery.getParameters())
-      .orderBy('user.last_active_at', 'DESC')
-      .take(take)
-      .skip(skip);
-
-    const [users, total] = await query.getManyAndCount();
-    return { data: users, total, page: page || 1, limit: take };
-  }
-
-  async findCurrentlyActiveUsers(userRole: string, minutes: number = 5, page?: number, limit?: number) {
-    if (userRole !== UserRole.ADMIN) {
-      await this.adminService.enforcePermission(userRole, 'perm_view_active_users');
-    }
-    
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
-    const cacheKey = `activeUsers:${userRole}:${page || 1}:${take}`;
-
-    return this.redisService.wrap(cacheKey, 30, async () => {
-      const query = this.usersRepository.createQueryBuilder('user')
-        .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
-        .where('user.last_active_at >= NOW() - make_interval(mins => :minutes)', { minutes })
-        .orderBy('user.last_active_at', 'DESC')
-        .take(take)
-        .skip(skip);
-
-      const [users, total] = await query.getManyAndCount();
-      return { data: users, total, page: page || 1, limit: take };
-    });
   }
 }

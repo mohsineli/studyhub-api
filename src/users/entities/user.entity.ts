@@ -24,7 +24,7 @@ export class User {
 
   @Index('idx_users_role')
   @Column({
-    type: 'enum',
+    type: 'simple-enum',
     enum: UserRole,
     default: UserRole.STUDENT,
   })
@@ -68,14 +68,14 @@ export class User {
   @Column({ length: 6, nullable: true })
   otp: string;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ nullable: true })
   otp_expires_at: Date;
 
   @Index('idx_users_last_active')
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ nullable: true })
   last_active_at: Date;
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
+  @CreateDateColumn()
   created_at: Date;
 
   @OneToMany(() => Note, (note) => note.uploader)

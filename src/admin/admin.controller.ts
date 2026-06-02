@@ -1,34 +1,35 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { AdminService } from './admin.service';
+import { SettingsService } from './settings.service';
+import { StatsService } from './stats.service';
 import { AnalyticsService } from './analytics.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
+import { JwtAuthGuard, RolesGuard } from '../auth';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { UserRole } from '../users/entities/user.entity';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN) // Restrict controller to Admin by default
+@Roles(UserRole.ADMIN)
 export class AdminController {
   constructor(
-    private readonly adminService: AdminService,
+    private readonly statsService: StatsService,
+    private readonly settingsService: SettingsService,
     private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Get('stats')
   getStats() {
-    return this.adminService.getStats();
+    return this.statsService.getStats();
   }
 
   @Get('active-users')
   getActiveUsers() {
-    return this.adminService.getActiveUsers();
+    return this.statsService.getActiveUsers();
   }
 
   @Get('report')
   getReport() {
-    return this.adminService.getReport();
+    return this.statsService.getReport();
   }
 
   @Get('settings/:key')
@@ -36,21 +37,20 @@ export class AdminController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.STUDENT)
   async getSetting(@Param('key') key: string) {
     const fallback = key.includes('theme') ? 'current' : 'approved';
-    const value = await this.adminService.getSetting(key, fallback);
+    const value = await this.settingsService.getSetting(key, fallback);
     return { key, value };
   }
 
   @Post('settings')
   @Roles(UserRole.ADMIN)
   async setSetting(@Body() body: { key: string; value: string }) {
-    const setting = await this.adminService.setSetting(body.key, body.value);
-    return setting;
+    return this.settingsService.setSetting(body.key, body.value);
   }
 
   @Get('permissions')
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   async getPermissions() {
-    return this.adminService.getModeratorPermissions();
+    return this.settingsService.getModeratorPermissions();
   }
 
   @Patch('permissions/:key')
@@ -59,7 +59,7 @@ export class AdminController {
     @Param('key') key: string,
     @Body() body: { value: string },
   ) {
-    return this.adminService.setModeratorPermission(key, body.value);
+    return this.settingsService.setModeratorPermission(key, body.value);
   }
 
   @Get('analytics/overview')

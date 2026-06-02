@@ -52,7 +52,7 @@ export class Note {
 
   @Index('idx_notes_status')
   @Column({
-    type: 'enum',
+    type: 'simple-enum',
     enum: NoteStatus,
     default: NoteStatus.PENDING,
   })
@@ -61,7 +61,7 @@ export class Note {
   @Column({ type: 'int', default: 0 })
   downloads: number;
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
+  @CreateDateColumn()
   created_at: Date;
 
   @OneToMany(() => Bookmark, (bookmark) => bookmark.note)
