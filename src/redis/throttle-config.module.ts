@@ -12,8 +12,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         throttlers: [
           {
             name: 'global',
-            ttl: 60_000,
-            limit: 100,
+            ttl: config.get<number>('THROTTLE_TTL', 60_000),
+            limit: config.get<number>('THROTTLE_LIMIT', 100),
           },
         ],
       }),

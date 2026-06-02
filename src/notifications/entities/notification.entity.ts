@@ -48,10 +48,17 @@ export class Notification {
   @Column({ default: false })
   is_read: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: {
+      to: (value: Date | null) => (value ? value.toISOString() : null),
+      from: (value: string | null) => (value ? new Date(value) : null),
+    },
+  })
   read_at: Date | null;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'simple-json', nullable: true })
   metadata: Record<string, any> | null;
 
   @CreateDateColumn()

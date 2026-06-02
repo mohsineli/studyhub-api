@@ -1,15 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { Note, NoteStatus } from './entities/note.entity';
 import { NoteReaction } from './entities/note-reaction.entity';
-import { User } from '../users/entities/user.entity';
-import { AdminService } from '../admin/admin.service';
 import { RedisService } from '../redis/redis.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { NotificationType } from '../notifications/entities/notification.entity';
+import { NoteDownloadedEvent, NoteStatusChangedEvent } from '../common/events/index';
+import { CACHE_KEYS } from '../common/constants/cache-keys';
 
 @Injectable()
 export class NotesService {
@@ -18,11 +17,8 @@ export class NotesService {
     private readonly noteRepository: Repository<Note>,
     @InjectRepository(NoteReaction)
     private readonly noteReactionRepository: Repository<NoteReaction>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    private readonly adminService: AdminService,
+    private readonly eventEmitter: EventEmitter2,
     private readonly redisService: RedisService,
-    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createNoteDto: CreateNoteDto, uploaderId: number) {
@@ -31,12 +27,12 @@ export class NotesService {
       uploader_id: uploaderId,
     });
     const saved = await this.noteRepository.save(note);
-    await this.redisService.delByPattern('notes:*');
+    await this.redisService.delByPattern(CACHE_KEYS.NOTES_PATTERN);
     return saved;
   }
 
   async findAll(sort?: string, page?: number, limit?: number) {
-    const cacheKey = `notes:${sort || 'latest'}:${page || 1}:${limit || 12}`;
+    const cacheKey = CACHE_KEYS.NOTES_ALL(sort, page, limit);
 
     return this.redisService.wrap(cacheKey, 300, async () => {
       const order: any = {};
@@ -68,7 +64,7 @@ export class NotesService {
   }
 
   async findTrending(): Promise<Note[]> {
-    return this.redisService.wrap('notes:trending', 600, async () => {
+    return this.redisService.wrap(CACHE_KEYS.NOTES_TRENDING, 600, async () => {
       return await this.noteRepository.find({
         where: { status: NoteStatus.APPROVED },
         relations: ['uploader'],
@@ -81,7 +77,7 @@ export class NotesService {
   }
 
   async findMyNotes(uploaderId: number, page = 1, limit = 12) {
-    const cacheKey = `notes:my:${uploaderId}:${page}:${limit}`;
+    const cacheKey = CACHE_KEYS.NOTES_MY(uploaderId, page, limit);
     return this.redisService.wrap(cacheKey, 30, async () => {
       const take = limit;
       const skip = (page - 1) * take;
@@ -109,7 +105,7 @@ export class NotesService {
   }
 
   async findOneCached(id: number) {
-    return this.redisService.wrap(`notes:${id}`, 120, () => this.findOne(id));
+    return this.redisService.wrap(CACHE_KEYS.NOTES_ONE(id), 120, () => this.findOne(id));
   }
 
   async update(id: number, updateNoteDto: UpdateNoteDto, user: any) {
@@ -119,7 +115,7 @@ export class NotesService {
     }
     Object.assign(note, updateNoteDto);
     await this.noteRepository.save(note);
-    await this.redisService.delByPattern('notes:*');
+    await this.redisService.delByPattern(CACHE_KEYS.NOTES_PATTERN);
     return note;
   }
 
@@ -128,16 +124,9 @@ export class NotesService {
     note.downloads += 1;
     await this.noteRepository.save(note);
 
-    // Points logic: if downloader is not the owner
-    if (downloaderId && note.uploader_id !== downloaderId) {
-      // +1 point for owner
-      await this.userRepository.increment({ id: note.uploader_id }, 'points', 1);
-      // +1 point for downloader
-      await this.userRepository.increment({ id: downloaderId }, 'points', 1);
-      await this.redisService.delByPattern('leaderboard:*');
-    }
+    this.eventEmitter.emit('note.downloaded', new NoteDownloadedEvent(id, downloaderId, note.uploader_id));
 
-    await this.redisService.delByPattern('notes:*');
+    await this.redisService.delByPattern(CACHE_KEYS.NOTES_PATTERN);
 
     return note;
   }
@@ -148,8 +137,8 @@ export class NotesService {
       throw new ForbiddenException('You do not have permission to delete this note');
     }
     const result = await this.noteRepository.remove(note);
-    await this.redisService.delByPattern('notes:*');
-    await this.redisService.delByPattern('leaderboard:*');
+    await this.redisService.delByPattern(CACHE_KEYS.NOTES_PATTERN);
+    await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
     return result;
   }
 
@@ -173,34 +162,9 @@ export class NotesService {
     note.status = status;
     await this.noteRepository.save(note);
 
-    // Reward uploader with 10 points when their note is approved!
-    if (status === NoteStatus.APPROVED) {
-      await this.userRepository.increment({ id: note.uploader_id }, 'points', 10);
-      await this.redisService.delByPattern('leaderboard:*');
-      await this.notificationsService.create({
-        userId: note.uploader_id,
-        type: NotificationType.NOTE_APPROVED,
-        title: 'Your note has been approved',
-        message: `"${note.title}" has been approved and is now visible to everyone.`,
-        entityType: 'note',
-        entityId: id,
-        redirectUrl: `/notes/${id}`,
-      });
-    }
+    this.eventEmitter.emit('note.status-changed', new NoteStatusChangedEvent(id, note.title, note.uploader_id, status));
 
-    if (status === NoteStatus.REJECTED) {
-      await this.notificationsService.create({
-        userId: note.uploader_id,
-        type: NotificationType.NOTE_REJECTED,
-        title: 'Your note has been rejected',
-        message: `"${note.title}" was not approved. Please review the guidelines and resubmit.`,
-        entityType: 'note',
-        entityId: id,
-        redirectUrl: `/notes/${id}`,
-      });
-    }
-
-    await this.redisService.delByPattern('notes:*');
+    await this.redisService.delByPattern(CACHE_KEYS.NOTES_PATTERN);
 
     return note;
   }

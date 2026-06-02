@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminService } from './admin.service';
+import { SettingsService } from './settings.service';
+import { StatsService } from './stats.service';
 import { AnalyticsService } from './analytics.service';
 import { AdminController } from './admin.controller';
 import { User } from '../users/entities/user.entity';
@@ -13,7 +15,7 @@ import { Setting } from './entities/setting.entity';
 @Module({
   imports: [TypeOrmModule.forFeature([User, Note, Review, Resource, Session, Setting])],
   controllers: [AdminController],
-  providers: [AdminService, AnalyticsService],
-  exports: [AdminService, AnalyticsService],
+  providers: [AdminService, SettingsService, StatsService, AnalyticsService],
+  exports: [AdminService, SettingsService, StatsService, AnalyticsService],
 })
 export class AdminModule {}

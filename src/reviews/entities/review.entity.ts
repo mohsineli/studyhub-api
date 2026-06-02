@@ -50,9 +50,9 @@ export class Review {
   @OneToMany(() => ReviewLike, like => like.review)
   likes: ReviewLike[];
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
+  @CreateDateColumn()
   created_at: Date;
 
-  @UpdateDateColumn({ type: 'timestamp', nullable: true, onUpdate: 'CURRENT_TIMESTAMP(6)' })
+  @UpdateDateColumn({ nullable: true })
   updated_at: Date;
 }

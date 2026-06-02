@@ -36,6 +36,6 @@ export class Bookmark {
   @Column({ length: 255, nullable: true })
   subject_name: string;
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
+  @CreateDateColumn()
   created_at: Date;
 }

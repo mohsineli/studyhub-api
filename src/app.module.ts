@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import * as Joi from 'joi';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -16,16 +18,59 @@ import { RedisModule } from './redis/redis.module';
 import { ThrottleConfigModule } from './redis/throttle-config.module';
 import { QueueModule } from './queue/queue.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { RepositoriesModule } from './common/repositories/repositories.module';
+import { NoteEventsListener } from './common/events/note-events.listener';
 
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: Joi.object({
+        DATABASE_TYPE: Joi.string().valid('postgres', 'sqlite').default('postgres'),
+        DATABASE_URL: Joi.string().uri().optional(),
+        DATABASE: Joi.string().optional(),
+        DATABASE_HOST: Joi.string().hostname().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        DATABASE_PORT: Joi.number().port().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        DATABASE_USERNAME: Joi.string().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        DATABASE_PASSWORD: Joi.string().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        DATABASE_NAME: Joi.string().when('DATABASE_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        JWT_ACCESS_SECRET: Joi.string().min(16).required(),
+        JWT_REFRESH_SECRET: Joi.string().min(16).required(),
+        FRONTEND_URL: Joi.string().uri().required(),
+        REDIS_URL: Joi.string().uri().optional(),
+        REDIS_HOST: Joi.string().hostname().when('REDIS_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        REDIS_PORT: Joi.number().port().when('REDIS_URL', { is: Joi.exist(), then: Joi.optional(), otherwise: Joi.required() }),
+        MAIL_HOST: Joi.string().hostname().optional(),
+        MAIL_PORT: Joi.number().port().optional(),
+        MAIL_USER: Joi.string().optional(),
+        MAIL_CLIENT_ID: Joi.string().optional(),
+        MAIL_CLIENT_SECRET: Joi.string().optional(),
+        MAIL_REFRESH_TOKEN: Joi.string().optional(),
+        SESSION_DURATION_DAYS: Joi.number().min(1).max(365).default(7),
+        OTP_EXPIRATION_MINUTES: Joi.number().min(1).max(60).default(10),
+        ACTIVE_USER_WINDOW_MINUTES: Joi.number().min(1).max(1440).default(5),
+        THROTTLE_TTL: Joi.number().min(1000).max(3600000).default(60000),
+        THROTTLE_LIMIT: Joi.number().min(1).max(10000).default(100),
+        BCRYPT_SALT_ROUNDS: Joi.number().min(4).max(16).default(10),
+      }),
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
+        const isTest = process.env.NODE_ENV === 'test';
+        const dbType = isTest ? 'sqlite' : configService.get<string>('DATABASE_TYPE', 'postgres');
+
+        if (dbType === 'sqlite') {
+          return {
+            type: 'better-sqlite3',
+            database: configService.get<string>('DATABASE', ':memory:'),
+            autoLoadEntities: true,
+            synchronize: true,
+          };
+        }
+
         const dbUrl = configService.get<string>('DATABASE_URL');
         
         if (dbUrl) {
@@ -71,6 +116,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     }),
     QueueModule,
     NotificationsModule,
+    RepositoriesModule,
     AuthModule,
     UsersModule,
     MailModule,
