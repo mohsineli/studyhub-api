@@ -6,8 +6,10 @@ import { Note, NoteStatus } from './entities/note.entity';
 import { NoteReaction } from './entities/note-reaction.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { RedisService } from '../redis/redis.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/entities/notification.entity';
+import { NoteDownloadedEvent, NoteStatusChangedEvent } from '../common/events/index';
 
 describe('NotesService', () => {
   let service: NotesService;
@@ -16,6 +18,7 @@ describe('NotesService', () => {
   let userRepository: jest.Mocked<any>;
   let redisService: jest.Mocked<RedisService>;
   let notificationsService: jest.Mocked<NotificationsService>;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   const mockNote = {
     id: 1,
@@ -77,6 +80,12 @@ describe('NotesService', () => {
             create: jest.fn(),
           },
         },
+        {
+          provide: EventEmitter2,
+          useValue: {
+            emit: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -86,6 +95,7 @@ describe('NotesService', () => {
     userRepository = module.get(getRepositoryToken(User)) as jest.Mocked<any>;
     redisService = module.get(RedisService) as jest.Mocked<RedisService>;
     notificationsService = module.get(NotificationsService) as jest.Mocked<NotificationsService>;
+    eventEmitter = module.get(EventEmitter2) as jest.Mocked<EventEmitter2>;
   });
 
   afterEach(() => {
@@ -95,6 +105,9 @@ describe('NotesService', () => {
   describe('create', () => {
     const createDto = {
       title: 'New Note',
+      courseTitle: 'Math 101',
+      code: 'MATH101',
+      dept: 'Mathematics',
       file_path: '/uploads/new.pdf',
       file_type: 'pdf',
     };
@@ -215,8 +228,7 @@ describe('NotesService', () => {
 
       await service.incrementDownload(1, 2);
 
-      expect(userRepository.increment).toHaveBeenCalledWith({ id: 1 }, 'points', 1);
-      expect(userRepository.increment).toHaveBeenCalledWith({ id: 2 }, 'points', 1);
+      expect(eventEmitter.emit).toHaveBeenCalledWith('note.downloaded', new NoteDownloadedEvent(1, 2, 1));
     });
 
     it('should not award points when downloader is uploader', async () => {
@@ -225,7 +237,7 @@ describe('NotesService', () => {
 
       await service.incrementDownload(1, 1);
 
-      expect(userRepository.increment).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith('note.downloaded', new NoteDownloadedEvent(1, 1, 1));
     });
   });
 
@@ -256,9 +268,9 @@ describe('NotesService', () => {
       const result = await service.updateStatus(1, NoteStatus.APPROVED);
 
       expect(result.status).toBe(NoteStatus.APPROVED);
-      expect(userRepository.increment).toHaveBeenCalledWith({ id: 1 }, 'points', 10);
-      expect(notificationsService.create).toHaveBeenCalledWith(
-        expect.objectContaining({ type: NotificationType.NOTE_APPROVED })
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'note.status-changed',
+        new NoteStatusChangedEvent(1, mockNote.title, mockNote.uploader_id, NoteStatus.APPROVED),
       );
     });
 
@@ -268,10 +280,10 @@ describe('NotesService', () => {
 
       await service.updateStatus(1, NoteStatus.REJECTED);
 
-      expect(notificationsService.create).toHaveBeenCalledWith(
-        expect.objectContaining({ type: NotificationType.NOTE_REJECTED })
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'note.status-changed',
+        new NoteStatusChangedEvent(1, mockNote.title, mockNote.uploader_id, NoteStatus.REJECTED),
       );
-      expect(userRepository.increment).not.toHaveBeenCalled();
     });
   });
 

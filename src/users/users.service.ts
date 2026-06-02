@@ -170,7 +170,7 @@ export class UsersService {
       changed = true;
     }
 
-    ['github', 'linkedin', 'instagram', 'facebook'].forEach(field => {
+    (['github', 'linkedin', 'instagram', 'facebook'] as const).forEach(field => {
       if (updateProfileDto[field] !== undefined && updateProfileDto[field] !== user[field]) {
         user[field] = updateProfileDto[field];
         changed = true;
