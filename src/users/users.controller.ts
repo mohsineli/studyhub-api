@@ -16,8 +16,7 @@ import { LeaderboardService } from './leaderboard.service';
 import { ActivityService } from './activity.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
+import { JwtAuthGuard, RolesGuard } from '../auth';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from './entities/user.entity';
 

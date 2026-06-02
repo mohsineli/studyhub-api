@@ -2,8 +2,7 @@ import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@ne
 import { SettingsService } from './settings.service';
 import { StatsService } from './stats.service';
 import { AnalyticsService } from './analytics.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
+import { JwtAuthGuard, RolesGuard } from '../auth';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { UserRole } from '../users/entities/user.entity';
