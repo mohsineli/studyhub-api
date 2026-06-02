@@ -8,6 +8,7 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import { NotificationType } from '../../notifications/entities/notification.entity';
 import { NoteStatus } from '../../notes/entities/note.entity';
 import { NoteDownloadedEvent, NoteStatusChangedEvent } from './index';
+import { CACHE_KEYS } from '../constants/cache-keys';
 
 @Injectable()
 export class NoteEventsListener {
@@ -22,7 +23,7 @@ export class NoteEventsListener {
     if (event.downloaderId && event.ownerId && event.downloaderId !== event.ownerId) {
       await this.userRepository.increment({ id: event.ownerId }, 'points', 1);
       await this.userRepository.increment({ id: event.downloaderId }, 'points', 1);
-      await this.redisService.delByPattern('leaderboard:*');
+      await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
     }
   }
 
@@ -30,7 +31,7 @@ export class NoteEventsListener {
   async handleNoteStatusChanged(event: NoteStatusChangedEvent) {
     if (event.status === NoteStatus.APPROVED) {
       await this.userRepository.increment({ id: event.uploaderId }, 'points', 10);
-      await this.redisService.delByPattern('leaderboard:*');
+      await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
       await this.notificationsService.create({
         userId: event.uploaderId,
         type: NotificationType.NOTE_APPROVED,

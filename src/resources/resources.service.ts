@@ -6,6 +6,7 @@ import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
+import { CACHE_KEYS } from '../common/constants/cache-keys';
 
 @Injectable()
 export class ResourcesService {
@@ -27,12 +28,12 @@ export class ResourcesService {
       status,
     });
     const saved = await this.resourceRepository.save(resource);
-    await this.redisService.delByPattern('resources:*');
+    await this.redisService.delByPattern(CACHE_KEYS.RESOURCES_PATTERN);
     return saved;
   }
 
   async findAll(page?: number, limit?: number) {
-    const cacheKey = `resources:${page || 1}:${limit || 12}`;
+    const cacheKey = CACHE_KEYS.RESOURCES_ALL(page, limit);
 
     return this.redisService.wrap(cacheKey, 300, async () => {
       const take = limit || 12;
@@ -66,7 +67,7 @@ export class ResourcesService {
   }
 
   async findCourses(page: number = 1, limit: number = 12) {
-    const cacheKey = `resources:courses:${page}:${limit}`;
+    const cacheKey = CACHE_KEYS.RESOURCES_COURSES(page, limit);
 
     return this.redisService.wrap(cacheKey, 300, async () => {
       const take = limit;
@@ -99,7 +100,7 @@ export class ResourcesService {
   }
 
   async findTrending(): Promise<Resource[]> {
-    return this.redisService.wrap('resources:trending', 600, async () => {
+    return this.redisService.wrap(CACHE_KEYS.RESOURCES_TRENDING, 600, async () => {
       return await this.resourceRepository.find({
         where: { status: ResourceStatus.APPROVED },
         relations: ['uploader'],
@@ -124,7 +125,7 @@ export class ResourcesService {
   }
 
   async findOneCached(id: number): Promise<Resource> {
-    return this.redisService.wrap(`resources:${id}`, 120, () => this.findOne(id));
+    return this.redisService.wrap(CACHE_KEYS.RESOURCES_ONE(id), 120, () => this.findOne(id));
   }
 
   async update(id: number, updateResourceDto: UpdateResourceDto, user: any): Promise<Resource> {
@@ -134,7 +135,7 @@ export class ResourcesService {
     }
     Object.assign(resource, updateResourceDto);
     const updated = await this.resourceRepository.save(resource);
-    await this.redisService.delByPattern('resources:*');
+    await this.redisService.delByPattern(CACHE_KEYS.RESOURCES_PATTERN);
     return updated;
   }
 
@@ -142,7 +143,7 @@ export class ResourcesService {
     const resource = await this.findOne(id);
     resource.status = status;
     const saved = await this.resourceRepository.save(resource);
-    await this.redisService.delByPattern('resources:*');
+    await this.redisService.delByPattern(CACHE_KEYS.RESOURCES_PATTERN);
     return saved;
   }
 
@@ -150,7 +151,7 @@ export class ResourcesService {
     const resource = await this.findOne(id);
     resource.downloads += 1;
     const saved = await this.resourceRepository.save(resource);
-    await this.redisService.delByPattern('resources:*');
+    await this.redisService.delByPattern(CACHE_KEYS.RESOURCES_PATTERN);
     return saved;
   }
 
@@ -160,6 +161,6 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have permission to delete this resource');
     }
     await this.resourceRepository.remove(resource);
-    await this.redisService.delByPattern('resources:*');
+    await this.redisService.delByPattern(CACHE_KEYS.RESOURCES_PATTERN);
   }
 }

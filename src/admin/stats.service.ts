@@ -7,6 +7,7 @@ import { Review } from '../reviews/entities/review.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { Session } from '../auth/entities/session.entity';
 import { RedisService } from '../redis/redis.service';
+import { CACHE_KEYS } from '../common/constants/cache-keys';
 
 @Injectable()
 export class StatsService {
@@ -20,7 +21,7 @@ export class StatsService {
   ) {}
 
   async getStats() {
-    return this.redisService.wrap('admin:stats', 300, async () => {
+    return this.redisService.wrap(CACHE_KEYS.ADMIN_STATS, 300, async () => {
       const totalUsers = await this.userRepository.count();
       const totalPendingNotes = await this.noteRepository.count({ where: { status: NoteStatus.PENDING } });
       const totalApprovedNotes = await this.noteRepository.count({ where: { status: NoteStatus.APPROVED } });
@@ -38,7 +39,7 @@ export class StatsService {
   }
 
   async getActiveUsers() {
-    return this.redisService.wrap('admin:active-users', 120, async () => {
+    return this.redisService.wrap(CACHE_KEYS.ADMIN_ACTIVE_USERS, 120, async () => {
       const rawData = await this.sessionRepository.createQueryBuilder('session')
         .select('DATE(session.created_at)', 'date')
         .addSelect('COUNT(DISTINCT session.userId)', 'active_users')
@@ -50,7 +51,7 @@ export class StatsService {
   }
 
   async getReport() {
-    return this.redisService.wrap('admin:report', 300, async () => {
+    return this.redisService.wrap(CACHE_KEYS.ADMIN_REPORT, 300, async () => {
       const topUsers = await this.userRepository.find({
         order: { points: 'DESC' },
         take: 10,

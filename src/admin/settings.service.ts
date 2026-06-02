@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { UserRole } from '../users/entities/user.entity';
 import { Setting } from './entities/setting.entity';
 import { RedisService } from '../redis/redis.service';
+import { CACHE_KEYS } from '../common/constants/cache-keys';
 
 export const MODERATOR_PERMISSIONS = [
   { key: 'perm_view_active_users', label: 'Active Users', description: 'View active user statistics' },
@@ -19,7 +20,7 @@ export class SettingsService {
   ) {}
 
   async getSetting(key: string, defaultValue: string): Promise<string> {
-    return this.redisService.wrap(`admin:setting:${key}`, 60, async () => {
+    return this.redisService.wrap(CACHE_KEYS.ADMIN_SETTING(key), 60, async () => {
       const setting = await this.settingRepository.findOne({ where: { key } });
       if (!setting) {
         const newSetting = this.settingRepository.create({ key, value: defaultValue });
@@ -38,12 +39,12 @@ export class SettingsService {
       setting.value = value;
     }
     const saved = await this.settingRepository.save(setting);
-    await this.redisService.delByPattern(`admin:setting:${key}`);
+    await this.redisService.delByPattern(CACHE_KEYS.ADMIN_SETTING(key));
     return saved;
   }
 
   async getModeratorPermissions() {
-    return this.redisService.wrap('admin:permissions', 60, async () => {
+    return this.redisService.wrap(CACHE_KEYS.ADMIN_PERMISSIONS, 60, async () => {
       const results: { key: string; label: string; description: string; value: string }[] = [];
       for (const perm of MODERATOR_PERMISSIONS) {
         const value = await this.getSetting(perm.key, 'admin');
@@ -60,7 +61,7 @@ export class SettingsService {
       throw new BadRequestException('Value must be "admin" or "admin+moderator"');
     }
     await this.setSetting(key, value);
-    await this.redisService.delByPattern('admin:permissions');
+    await this.redisService.delByPattern(CACHE_KEYS.ADMIN_PERMISSIONS);
     return { key, value };
   }
 

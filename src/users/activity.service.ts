@@ -5,6 +5,7 @@ import { User, UserRole } from './entities/user.entity';
 import { Session } from '../auth/entities/session.entity';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
+import { CACHE_KEYS } from '../common/constants/cache-keys';
 
 @Injectable()
 export class ActivityService {
@@ -23,7 +24,7 @@ export class ActivityService {
       .where('id = :id', { id })
       .execute();
 
-    await this.redisService.delByPattern('activeUsers:*');
+    await this.redisService.delByPattern(CACHE_KEYS.ACTIVE_USERS_PATTERN);
   }
 
   async findActiveUsersByDay(userRole: string, dateString?: string, page?: number, limit?: number) {
@@ -66,7 +67,7 @@ export class ActivityService {
 
     const take = limit || 12;
     const skip = page ? (page - 1) * take : 0;
-    const cacheKey = `activeUsers:${userRole}:${page || 1}:${take}`;
+    const cacheKey = CACHE_KEYS.ACTIVE_USERS(userRole, page, take);
 
     return this.redisService.wrap(cacheKey, 30, async () => {
       const query = this.usersRepository.createQueryBuilder('user')

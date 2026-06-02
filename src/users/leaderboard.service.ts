@@ -5,6 +5,7 @@ import { User } from './entities/user.entity';
 import { NoteStatus } from '../notes/entities/note.entity';
 import { Setting } from '../admin/entities/setting.entity';
 import { RedisService } from '../redis/redis.service';
+import { CACHE_KEYS } from '../common/constants/cache-keys';
 
 @Injectable()
 export class LeaderboardService {
@@ -21,7 +22,7 @@ export class LeaderboardService {
 
     await this.applyMonthlyReset();
 
-    const cacheKey = 'leaderboard:current';
+    const cacheKey = CACHE_KEYS.LEADERBOARD_CURRENT;
 
     return this.redisService.wrap(cacheKey, 300, async () => {
       const query = this.usersRepository.createQueryBuilder('user')
@@ -87,7 +88,7 @@ export class LeaderboardService {
         .where('points >= :max', { max: 500 })
         .execute();
 
-      await this.redisService.delByPattern('leaderboard:*');
+      await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
     }
   }
 

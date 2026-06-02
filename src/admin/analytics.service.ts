@@ -7,6 +7,7 @@ import { Review } from '../reviews/entities/review.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { Session } from '../auth/entities/session.entity';
 import { RedisService } from '../redis/redis.service';
+import { CACHE_KEYS } from '../common/constants/cache-keys';
 
 @Injectable()
 export class AnalyticsService {
@@ -45,7 +46,7 @@ export class AnalyticsService {
   }
 
   async getOverview(filter: string = '30d') {
-    const cacheKey = `analytics:overview:${filter}`;
+    const cacheKey = CACHE_KEYS.ANALYTICS_OVERVIEW(filter);
     return this.redisService.wrap(cacheKey, 120, async () => {
       const range = this.getDateRange(filter);
       const where = { created_at: Between(range.start, range.end) as any };
@@ -88,7 +89,7 @@ export class AnalyticsService {
   }
 
   async getUserAnalytics(filter: string = '30d') {
-    const cacheKey = `analytics:users:${filter}`;
+    const cacheKey = CACHE_KEYS.ANALYTICS_USERS(filter);
     return this.redisService.wrap(cacheKey, 120, async () => {
       const range = this.getDateRange(filter);
 
@@ -142,7 +143,7 @@ export class AnalyticsService {
   }
 
   async getActivityAnalytics(filter: string = '30d') {
-    const cacheKey = `analytics:activity:${filter}`;
+    const cacheKey = CACHE_KEYS.ANALYTICS_ACTIVITY(filter);
     return this.redisService.wrap(cacheKey, 120, async () => {
       const range = this.getDateRange(filter);
 
@@ -197,7 +198,7 @@ export class AnalyticsService {
   }
 
   async getContentAnalytics(filter: string = '30d') {
-    const cacheKey = `analytics:content:${filter}`;
+    const cacheKey = CACHE_KEYS.ANALYTICS_CONTENT(filter);
     return this.redisService.wrap(cacheKey, 120, async () => {
       const range = this.getDateRange(filter);
 

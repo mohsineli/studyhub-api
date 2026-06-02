@@ -9,6 +9,7 @@ import { User, UserRole } from './entities/user.entity';
 import { NoteStatus } from '../notes/entities/note.entity';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
+import { CACHE_KEYS } from '../common/constants/cache-keys';
 
 @Injectable()
 export class UsersService {
@@ -65,7 +66,7 @@ export class UsersService {
   }
 
   async getPublicProfile(id: number): Promise<any> {
-    return this.redisService.wrap(`user:profile:${id}`, 120, async () => {
+    return this.redisService.wrap(CACHE_KEYS.USER_PROFILE(id), 120, async () => {
       return this.fetchPublicProfile(id);
     });
   }
@@ -122,9 +123,9 @@ export class UsersService {
     }
     Object.assign(user, updateUserDto);
     const savedUser = await this.usersRepository.save(user);
-    await this.redisService.delByPattern('leaderboard:*');
-    await this.redisService.delByPattern('activeUsers:*');
-    await this.redisService.delByPattern(`user:profile:${id}`);
+    await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
+    await this.redisService.delByPattern(CACHE_KEYS.ACTIVE_USERS_PATTERN);
+    await this.redisService.delByPattern(CACHE_KEYS.USER_PROFILE(id));
     return savedUser;
   }
 
@@ -184,7 +185,7 @@ export class UsersService {
     }
 
     const updatedUser = await this.usersRepository.save(user);
-    await this.redisService.delByPattern(`user:profile:${id}`);
+    await this.redisService.delByPattern(CACHE_KEYS.USER_PROFILE(id));
     return updatedUser;
   }
 
@@ -203,8 +204,8 @@ export class UsersService {
     }
     user.banned = true;
     await this.usersRepository.save(user);
-    await this.redisService.delByPattern('leaderboard:*');
-    await this.redisService.delByPattern('activeUsers:*');
+    await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
+    await this.redisService.delByPattern(CACHE_KEYS.ACTIVE_USERS_PATTERN);
     return { message: `User "${user.name}" has been banned.` };
   }
 
@@ -212,8 +213,8 @@ export class UsersService {
     const user = await this.findOne(targetId);
     user.banned = false;
     await this.usersRepository.save(user);
-    await this.redisService.delByPattern('leaderboard:*');
-    await this.redisService.delByPattern('activeUsers:*');
+    await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
+    await this.redisService.delByPattern(CACHE_KEYS.ACTIVE_USERS_PATTERN);
     return { message: `User "${user.name}" has been unbanned.` };
   }
 
@@ -227,8 +228,8 @@ export class UsersService {
     }
     user.role = role;
     await this.usersRepository.save(user);
-    await this.redisService.delByPattern('leaderboard:*');
-    await this.redisService.delByPattern('activeUsers:*');
+    await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
+    await this.redisService.delByPattern(CACHE_KEYS.ACTIVE_USERS_PATTERN);
     return { message: `User "${user.name}" role updated to "${role}".` };
   }
 }
