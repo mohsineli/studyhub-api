@@ -17,6 +17,7 @@ import { RedisModule } from './redis/redis.module';
 import { ThrottleConfigModule } from './redis/throttle-config.module';
 import { QueueModule } from './queue/queue.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { RepositoriesModule } from './common/repositories/repositories.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     }),
     QueueModule,
     NotificationsModule,
+    RepositoriesModule,
     AuthModule,
     UsersModule,
     MailModule,
