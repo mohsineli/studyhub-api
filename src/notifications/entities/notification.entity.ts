@@ -48,7 +48,14 @@ export class Notification {
   @Column({ default: false })
   is_read: boolean;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: {
+      to: (value: Date | null) => (value ? value.toISOString() : null),
+      from: (value: string | null) => (value ? new Date(value) : null),
+    },
+  })
   read_at: Date | null;
 
   @Column({ type: 'simple-json', nullable: true })
