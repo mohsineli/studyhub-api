@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { UserRole } from '../users/entities/user.entity';
 import { Setting } from './entities/setting.entity';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { SettingRepository } from '../common/repositories/setting.repository';
+import { CACHE_TTL } from '../common/constants/defaults';
 
 export const MODERATOR_PERMISSIONS = [
   { key: 'perm_view_active_users', label: 'Active Users', description: 'View active user statistics' },
@@ -15,12 +15,12 @@ export const MODERATOR_PERMISSIONS = [
 @Injectable()
 export class SettingsService {
   constructor(
-    @InjectRepository(Setting) private readonly settingRepository: Repository<Setting>,
+    private readonly settingRepository: SettingRepository,
     private readonly redisService: RedisService,
   ) {}
 
   async getSetting(key: string, defaultValue: string): Promise<string> {
-    return this.redisService.wrap(CACHE_KEYS.ADMIN_SETTING(key), 60, async () => {
+    return this.redisService.wrap(CACHE_KEYS.ADMIN_SETTING(key), CACHE_TTL.ADMIN_SETTING, async () => {
       const setting = await this.settingRepository.findOne({ where: { key } });
       if (!setting) {
         const newSetting = this.settingRepository.create({ key, value: defaultValue });
@@ -44,7 +44,7 @@ export class SettingsService {
   }
 
   async getModeratorPermissions() {
-    return this.redisService.wrap(CACHE_KEYS.ADMIN_PERMISSIONS, 60, async () => {
+    return this.redisService.wrap(CACHE_KEYS.ADMIN_PERMISSIONS, CACHE_TTL.ADMIN_PERMISSIONS, async () => {
       const results: { key: string; label: string; description: string; value: string }[] = [];
       for (const perm of MODERATOR_PERMISSIONS) {
         const value = await this.getSetting(perm.key, 'admin');

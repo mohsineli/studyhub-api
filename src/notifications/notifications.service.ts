@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { Repository, FindOptionsWhere, LessThan } from 'typeorm';
+import { LessThan } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
+import { PAGINATION, OTHER } from '../common/constants/defaults';
+import { buildPagination } from '../common/pagination/pagination.helper';
+import { NotificationRepository } from '../common/repositories/notification.repository';
 
 @Injectable()
 export class NotificationsService {
   constructor(
-    @InjectRepository(Notification)
-    private readonly notificationRepository: Repository<Notification>,
+    private readonly notificationRepository: NotificationRepository,
   ) {}
 
   async create(data: {
@@ -43,19 +44,19 @@ export class NotificationsService {
       unreadOnly?: boolean;
     } = {},
   ): Promise<{ data: Notification[]; total: number; unreadCount: number }> {
-    const page = options.page || 1;
-    const limit = options.limit || 20;
-    const skip = (page - 1) * limit;
+    const page = options.page || PAGINATION.DEFAULT_PAGE;
+    const limit = options.limit || PAGINATION.NOTIFICATIONS_LIMIT;
+    const { take, skip } = buildPagination(page, limit);
 
-    const where: FindOptionsWhere<Notification> = { user_id: userId };
+    const where: any = { user_id: userId };
     if (options.unreadOnly) where.is_read = false;
 
     const [data, total] = await this.notificationRepository.findAndCount({
       where,
       order: { created_at: 'DESC' },
-      take: limit,
+      take,
       skip,
-    });
+    } as any);
 
     const unreadCount = await this.notificationRepository.count({
       where: { user_id: userId, is_read: false },
@@ -75,7 +76,7 @@ export class NotificationsService {
       { id, user_id: userId },
       { is_read: true, read_at: new Date() },
     );
-    return this.notificationRepository.findOne({ where: { id } });
+    return this.notificationRepository.findOne({ where: { id } } as any);
   }
 
   async markAllAsRead(userId: number): Promise<void> {
@@ -93,7 +94,7 @@ export class NotificationsService {
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async cleanupOldReadNotifications(): Promise<void> {
     const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - OTHER.NOTIFICATION_RETENTION_DAYS);
 
     await this.notificationRepository.delete({
       is_read: true,

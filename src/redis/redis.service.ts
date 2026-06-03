@@ -1,6 +1,7 @@
-import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { OTHER } from '../common/constants/defaults';
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
@@ -12,7 +13,7 @@ export class RedisService implements OnModuleDestroy {
       ? new Redis(url, {
           lazyConnect: true,
           enableAutoPipelining: true,
-          retryStrategy: (times) => times > 10 ? null : Math.min(times * 100, 5000),
+          retryStrategy: (times) => times > OTHER.REDIS_RETRY_MAX_ATTEMPTS ? null : Math.min(times * OTHER.REDIS_RETRY_BASE_MS, OTHER.REDIS_RETRY_MAX_MS),
         })
       : new Redis({
           host: this.configService.get('REDIS_HOST', 'localhost'),
@@ -20,7 +21,7 @@ export class RedisService implements OnModuleDestroy {
           password: this.configService.get('REDIS_PASSWORD'),
           lazyConnect: true,
           enableAutoPipelining: true,
-          retryStrategy: (times) => times > 10 ? null : Math.min(times * 100, 5000),
+          retryStrategy: (times) => times > OTHER.REDIS_RETRY_MAX_ATTEMPTS ? null : Math.min(times * OTHER.REDIS_RETRY_BASE_MS, OTHER.REDIS_RETRY_MAX_MS),
         });
 
     this.client.on('error', () => { /* suppressed — graceful degradation */ });
@@ -86,7 +87,7 @@ export class RedisService implements OnModuleDestroy {
   async delByPattern(pattern: string): Promise<void> {
     if (!this.isConnected()) return;
     try {
-      const stream = this.client.scanStream({ match: pattern, count: 100 });
+      const stream = this.client.scanStream({ match: pattern, count: OTHER.REDIS_SCAN_COUNT });
       for await (const keys of stream) {
         if (keys.length > 0) {
           await this.client.del(...keys);

@@ -1,18 +1,18 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { Resource, ResourceStatus } from './entities/resource.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { CACHE_TTL, TOP_N, PAGINATION } from '../common/constants/defaults';
+import { buildPagination } from '../common/pagination/pagination.helper';
+import { ResourceRepository } from '../common/repositories/resource.repository';
 
 @Injectable()
 export class ResourcesService {
   constructor(
-    @InjectRepository(Resource)
-    private readonly resourceRepository: Repository<Resource>,
+    private readonly resourceRepository: ResourceRepository,
     private readonly settingsService: SettingsService,
     private readonly redisService: RedisService,
   ) {}
@@ -35,9 +35,8 @@ export class ResourcesService {
   async findAll(page?: number, limit?: number) {
     const cacheKey = CACHE_KEYS.RESOURCES_ALL(page, limit);
 
-    return this.redisService.wrap(cacheKey, 300, async () => {
-      const take = limit || 12;
-      const skip = page ? (page - 1) * take : 0;
+    return this.redisService.wrap(cacheKey, CACHE_TTL.RESOURCES_LIST, async () => {
+      const { take, skip } = buildPagination(page, limit);
 
       const [data, total] = await this.resourceRepository.findAndCount({
         where: { status: ResourceStatus.APPROVED },
@@ -52,8 +51,7 @@ export class ResourcesService {
   }
 
   async findPending(page?: number, limit?: number) {
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
+    const { take, skip } = buildPagination(page, limit);
 
     const [data, total] = await this.resourceRepository.findAndCount({
       where: { status: ResourceStatus.PENDING },
@@ -66,12 +64,11 @@ export class ResourcesService {
     return { data, total, page: page || 1, limit: take };
   }
 
-  async findCourses(page: number = 1, limit: number = 12) {
+  async findCourses(page: number = PAGINATION.DEFAULT_PAGE, limit: number = PAGINATION.DEFAULT_LIMIT) {
     const cacheKey = CACHE_KEYS.RESOURCES_COURSES(page, limit);
 
-    return this.redisService.wrap(cacheKey, 300, async () => {
-      const take = limit;
-      const skip = (page - 1) * take;
+    return this.redisService.wrap(cacheKey, CACHE_TTL.RESOURCES_LIST, async () => {
+      const { take, skip } = buildPagination(page, limit);
 
       const data = await this.resourceRepository
         .createQueryBuilder('resource')
@@ -100,7 +97,7 @@ export class ResourcesService {
   }
 
   async findTrending(): Promise<Resource[]> {
-    return this.redisService.wrap(CACHE_KEYS.RESOURCES_TRENDING, 600, async () => {
+    return this.redisService.wrap(CACHE_KEYS.RESOURCES_TRENDING, CACHE_TTL.RESOURCES_TRENDING, async () => {
       return await this.resourceRepository.find({
         where: { status: ResourceStatus.APPROVED },
         relations: ['uploader'],
@@ -108,7 +105,7 @@ export class ResourcesService {
           downloads: 'DESC',
           avg_rating: 'DESC',
         },
-        take: 10,
+        take: TOP_N.TRENDING_RESOURCES,
       });
     });
   }
@@ -125,7 +122,7 @@ export class ResourcesService {
   }
 
   async findOneCached(id: number): Promise<Resource> {
-    return this.redisService.wrap(CACHE_KEYS.RESOURCES_ONE(id), 120, () => this.findOne(id));
+    return this.redisService.wrap(CACHE_KEYS.RESOURCES_ONE(id), CACHE_TTL.RESOURCE_DETAIL, () => this.findOne(id));
   }
 
   async update(id: number, updateResourceDto: UpdateResourceDto, user: any): Promise<Resource> {

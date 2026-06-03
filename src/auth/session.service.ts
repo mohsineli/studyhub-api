@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
 import { Session } from './entities/session.entity';
 import { RedisService } from '../redis/redis.service';
+import { SessionRepository } from '../common/repositories/session.repository';
 
 @Injectable()
 export class SessionService {
@@ -13,8 +12,7 @@ export class SessionService {
   }
 
   constructor(
-    @InjectRepository(Session)
-    private readonly sessionRepository: Repository<Session>,
+    private readonly sessionRepository: SessionRepository,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
   ) {}

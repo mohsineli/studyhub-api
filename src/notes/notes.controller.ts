@@ -1,9 +1,11 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, ParseIntPipe, Query } from '@nestjs/common';
+import type { Request } from 'express';
 import { NotesService } from './notes.service';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { CreateReactionDto } from './dto/create-reaction.dto';
 import { JwtAuthGuard, RolesGuard } from '../auth';
+import type { AuthenticatedRequest } from '../auth';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { NoteStatus } from './entities/note.entity';
@@ -15,7 +17,7 @@ export class NotesController {
   constructor(private readonly notesService: NotesService) {}
 
   @Post()
-  create(@Body() createNoteDto: CreateNoteDto, @Req() req: any) {
+  create(@Body() createNoteDto: CreateNoteDto, @Req() req: AuthenticatedRequest) {
     return this.notesService.create(createNoteDto, req.user.id);
   }
 
@@ -30,7 +32,7 @@ export class NotesController {
 
   @Get('my-notes')
   findMyNotes(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
@@ -60,7 +62,7 @@ export class NotesController {
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: NoteStatus,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.notesService.updateStatus(id, status, req.user.role);
   }
@@ -75,7 +77,7 @@ export class NotesController {
   toggleReaction(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateReactionDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.notesService.toggleReaction(req.user.id, id, dto.reaction);
   }
@@ -84,27 +86,27 @@ export class NotesController {
   @Public()
   getReactions(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @Req() req: Request,
   ) {
-    return this.notesService.getReactionSummary(id, req.user?.id);
+    return this.notesService.getReactionSummary(id, (req as any).user?.id);
   }
 
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateNoteDto: UpdateNoteDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.notesService.update(id, updateNoteDto, req.user);
   }
 
   @Post(':id/download')
-  incrementDownload(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  incrementDownload(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.notesService.incrementDownload(id, req.user.id);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.notesService.remove(id, req.user);
   }
 }

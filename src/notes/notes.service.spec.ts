@@ -1,21 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotesService } from './notes.service';
-import { Note, NoteStatus } from './entities/note.entity';
-import { NoteReaction } from './entities/note-reaction.entity';
-import { User, UserRole } from '../users/entities/user.entity';
+import { NoteStatus } from './entities/note.entity';
+import { UserRole } from '../users/entities/user.entity';
 import { RedisService } from '../redis/redis.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/entities/notification.entity';
 import { NoteDownloadedEvent, NoteStatusChangedEvent } from '../common/events/index';
+import { NoteRepository } from '../common/repositories/note.repository';
+import { NoteReactionRepository } from '../common/repositories/note-reaction.repository';
 
 describe('NotesService', () => {
   let service: NotesService;
   let noteRepository: jest.Mocked<any>;
   let noteReactionRepository: jest.Mocked<any>;
-  let userRepository: jest.Mocked<any>;
   let redisService: jest.Mocked<RedisService>;
   let notificationsService: jest.Mocked<NotificationsService>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
@@ -38,7 +37,7 @@ describe('NotesService', () => {
       providers: [
         NotesService,
         {
-          provide: getRepositoryToken(Note),
+          provide: NoteRepository,
           useValue: {
             create: jest.fn(),
             save: jest.fn(),
@@ -46,22 +45,18 @@ describe('NotesService', () => {
             findOne: jest.fn(),
             findAndCount: jest.fn(),
             remove: jest.fn(),
+            count: jest.fn(),
+            createQueryBuilder: jest.fn(),
           },
         },
         {
-          provide: getRepositoryToken(NoteReaction),
+          provide: NoteReactionRepository,
           useValue: {
             create: jest.fn(),
             save: jest.fn(),
             find: jest.fn(),
             findOne: jest.fn(),
             remove: jest.fn(),
-          },
-        },
-        {
-          provide: getRepositoryToken(User),
-          useValue: {
-            increment: jest.fn(),
           },
         },
         {
@@ -90,9 +85,8 @@ describe('NotesService', () => {
     }).compile();
 
     service = module.get<NotesService>(NotesService);
-    noteRepository = module.get(getRepositoryToken(Note)) as jest.Mocked<any>;
-    noteReactionRepository = module.get(getRepositoryToken(NoteReaction)) as jest.Mocked<any>;
-    userRepository = module.get(getRepositoryToken(User)) as jest.Mocked<any>;
+    noteRepository = module.get(NoteRepository) as jest.Mocked<any>;
+    noteReactionRepository = module.get(NoteReactionRepository) as jest.Mocked<any>;
     redisService = module.get(RedisService) as jest.Mocked<RedisService>;
     notificationsService = module.get(NotificationsService) as jest.Mocked<NotificationsService>;
     eventEmitter = module.get(EventEmitter2) as jest.Mocked<EventEmitter2>;

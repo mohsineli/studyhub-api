@@ -5,8 +5,8 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { JwtRefreshAuthGuard } from './jwt-refresh-auth.guard';
+import { JwtAuthGuard, JwtRefreshAuthGuard } from './index';
+import type { AuthenticatedRequest } from './index';
 
 @Controller('auth')
 export class AuthController {
@@ -36,30 +36,27 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtRefreshAuthGuard)
-  async refresh(@Req() req: Express.Request, @Res({ passthrough: true }) res: Express.Response) {
-    const user = req.user as any;
-    return this.authService.refreshTokens(user.id, user.refreshToken, req, res);
+  async refresh(@Req() req: AuthenticatedRequest, @Res({ passthrough: true }) res: Express.Response) {
+    return this.authService.refreshTokens(req.user.id, req.user.refreshToken!, req, res);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtRefreshAuthGuard) // Use Refresh Guard to get the token to clear the specific session
-  async logout(@Req() req: Express.Request, @Res({ passthrough: true }) res: Express.Response) {
-    const user = req.user as any;
-    return this.authService.logout(user.id, user.refreshToken, res, req);
+  async logout(@Req() req: AuthenticatedRequest, @Res({ passthrough: true }) res: Express.Response) {
+    return this.authService.logout(req.user.id, req.user.refreshToken!, res, req);
   }
 
   @Post('logout-all')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async logoutAll(@Req() req: Express.Request, @Res({ passthrough: true }) res: Express.Response) {
-    const user = req.user as any;
-    return this.authService.logoutAll(user.id, res, req);
+  async logoutAll(@Req() req: AuthenticatedRequest, @Res({ passthrough: true }) res: Express.Response) {
+    return this.authService.logoutAll(req.user.id, res, req);
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  getProfile(@Req() req: Express.Request) {
+  getProfile(@Req() req: AuthenticatedRequest) {
     return req.user;
   }
 

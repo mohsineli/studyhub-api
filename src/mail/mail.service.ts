@@ -71,7 +71,8 @@ export class MailService {
                          <p>Thank you for registering with <b>StudyHub</b>. Use the OTP below to verify your email:</p>`;
 
     const html = this.getHtmlTemplate(headerText, messageBody, otp, otpBoxColor);
-    const text = `Hello ${name},\n\nThank you for registering with StudyHub. Your OTP code is: ${otp}\n\nThis OTP is valid for 10 minutes.`;
+    const otpMinutes = this.configService.get<number>('OTP_EXPIRATION_MINUTES', 10);
+    const text = `Hello ${name},\n\nThank you for registering with StudyHub. Your OTP code is: ${otp}\n\nThis OTP is valid for ${otpMinutes} minutes.`;
 
     await this.sendMail(to, subject, html, text);
   }
@@ -84,7 +85,8 @@ export class MailService {
                          <p>You requested a password reset for <b>StudyHub</b>. Please use the OTP below to reset your password:</p>`;
 
     const html = this.getHtmlTemplate(headerText, messageBody, otp, otpBoxColor);
-    const text = `Hello ${name},\n\nYou requested a password reset for StudyHub. Your OTP code is: ${otp}\n\nThis OTP is valid for 10 minutes.`;
+    const otpMinutes = this.configService.get<number>('OTP_EXPIRATION_MINUTES', 10);
+    const text = `Hello ${name},\n\nYou requested a password reset for StudyHub. Your OTP code is: ${otp}\n\nThis OTP is valid for ${otpMinutes} minutes.`;
 
     await this.sendMail(to, subject, html, text);
   }

@@ -1,24 +1,25 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
-import { Session } from '../auth/entities/session.entity';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { CACHE_TTL, ANALYTICS } from '../common/constants/defaults';
+import { buildPagination } from '../common/pagination/pagination.helper';
+import { UserRepository } from '../common/repositories/user.repository';
+import { SessionRepository } from '../common/repositories/session.repository';
 
 @Injectable()
 export class ActivityService {
   constructor(
-    @InjectRepository(User) private readonly usersRepository: Repository<User>,
-    @InjectRepository(Session) private readonly sessionRepository: Repository<Session>,
+    private readonly usersRepository: UserRepository,
+    private readonly sessionRepository: SessionRepository,
     private readonly settingsService: SettingsService,
     private readonly redisService: RedisService,
   ) {}
 
   async updateLastActive(id: number): Promise<void> {
     await this.usersRepository
-      .createQueryBuilder()
+      .createQueryBuilder('user')
       .update(User)
       .set({ last_active_at: () => 'NOW()' })
       .where('id = :id', { id })
@@ -40,8 +41,7 @@ export class ActivityService {
       dateStr = `${year}-${month}-${day}`;
     }
 
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
+    const { take, skip } = buildPagination(page, limit);
 
     const sessionSubquery = this.sessionRepository
       .createQueryBuilder('session')
@@ -60,16 +60,15 @@ export class ActivityService {
     return { data: users, total, page: page || 1, limit: take };
   }
 
-  async findCurrentlyActiveUsers(userRole: string, minutes: number = 5, page?: number, limit?: number) {
+  async findCurrentlyActiveUsers(userRole: string, minutes: number = ANALYTICS.ACTIVE_USER_MINUTES, page?: number, limit?: number) {
     if (userRole !== UserRole.ADMIN) {
       await this.settingsService.enforcePermission(userRole, 'perm_view_active_users');
     }
 
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
+    const { take, skip } = buildPagination(page, limit);
     const cacheKey = CACHE_KEYS.ACTIVE_USERS(userRole, page, take);
 
-    return this.redisService.wrap(cacheKey, 30, async () => {
+    return this.redisService.wrap(cacheKey, CACHE_TTL.ACTIVITY, async () => {
       const query = this.usersRepository.createQueryBuilder('user')
         .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
         .where('user.last_active_at >= NOW() - make_interval(mins => :minutes)', { minutes })

@@ -1,22 +1,21 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { Note, NoteStatus } from './entities/note.entity';
-import { NoteReaction } from './entities/note-reaction.entity';
 import { RedisService } from '../redis/redis.service';
 import { NoteDownloadedEvent, NoteStatusChangedEvent } from '../common/events/index';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { CACHE_TTL, TOP_N, PAGINATION } from '../common/constants/defaults';
+import { buildPagination } from '../common/pagination/pagination.helper';
+import { NoteRepository } from '../common/repositories/note.repository';
+import { NoteReactionRepository } from '../common/repositories/note-reaction.repository';
 
 @Injectable()
 export class NotesService {
   constructor(
-    @InjectRepository(Note)
-    private readonly noteRepository: Repository<Note>,
-    @InjectRepository(NoteReaction)
-    private readonly noteReactionRepository: Repository<NoteReaction>,
+    private readonly noteRepository: NoteRepository,
+    private readonly noteReactionRepository: NoteReactionRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly redisService: RedisService,
   ) {}
@@ -34,7 +33,7 @@ export class NotesService {
   async findAll(sort?: string, page?: number, limit?: number) {
     const cacheKey = CACHE_KEYS.NOTES_ALL(sort, page, limit);
 
-    return this.redisService.wrap(cacheKey, 300, async () => {
+    return this.redisService.wrap(cacheKey, CACHE_TTL.NOTES_LIST, async () => {
       const order: any = {};
       
       switch (sort) {
@@ -48,8 +47,7 @@ export class NotesService {
           order.created_at = 'DESC';
       }
 
-      const take = limit || 12;
-      const skip = page ? (page - 1) * take : 0;
+      const { take, skip } = buildPagination(page, limit);
 
       const [data, total] = await this.noteRepository.findAndCount({
         where: { status: NoteStatus.APPROVED },
@@ -64,23 +62,22 @@ export class NotesService {
   }
 
   async findTrending(): Promise<Note[]> {
-    return this.redisService.wrap(CACHE_KEYS.NOTES_TRENDING, 600, async () => {
+    return this.redisService.wrap(CACHE_KEYS.NOTES_TRENDING, CACHE_TTL.NOTES_TRENDING, async () => {
       return await this.noteRepository.find({
         where: { status: NoteStatus.APPROVED },
         relations: ['uploader'],
         order: {
           downloads: 'DESC',
         },
-        take: 10,
+        take: TOP_N.TRENDING_NOTES,
       });
     });
   }
 
-  async findMyNotes(uploaderId: number, page = 1, limit = 12) {
+  async findMyNotes(uploaderId: number, page = PAGINATION.DEFAULT_PAGE, limit = PAGINATION.DEFAULT_LIMIT) {
     const cacheKey = CACHE_KEYS.NOTES_MY(uploaderId, page, limit);
-    return this.redisService.wrap(cacheKey, 30, async () => {
-      const take = limit;
-      const skip = (page - 1) * take;
+    return this.redisService.wrap(cacheKey, CACHE_TTL.NOTES_SEARCH, async () => {
+      const { take, skip } = buildPagination(page, limit);
 
       const [data, total] = await this.noteRepository.findAndCount({
         where: { uploader_id: uploaderId },
@@ -105,7 +102,7 @@ export class NotesService {
   }
 
   async findOneCached(id: number) {
-    return this.redisService.wrap(CACHE_KEYS.NOTES_ONE(id), 120, () => this.findOne(id));
+    return this.redisService.wrap(CACHE_KEYS.NOTES_ONE(id), CACHE_TTL.NOTE_DETAIL, () => this.findOne(id));
   }
 
   async update(id: number, updateNoteDto: UpdateNoteDto, user: any) {
@@ -143,8 +140,7 @@ export class NotesService {
   }
 
   async findPending(page?: number, limit?: number) {
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
+    const { take, skip } = buildPagination(page, limit);
 
     const [data, total] = await this.noteRepository.findAndCount({
       where: { status: NoteStatus.PENDING },

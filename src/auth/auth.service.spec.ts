@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { getQueueToken } from '@nestjs/bullmq';
 import * as crypto from 'crypto';
 import { AuthService } from './auth.service';
@@ -11,8 +10,8 @@ import { UsersService } from '../users/users.service';
 import { ActivityService } from '../users/activity.service';
 import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
-import { PendingUser } from './entities/pending-user.entity';
 import { UserRole } from '../users/entities/user.entity';
+import { PendingUserRepository } from '../common/repositories/pending-user.repository';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn().mockResolvedValue('hashed_password'),
@@ -102,7 +101,7 @@ describe('AuthService', () => {
           },
         },
         {
-          provide: getRepositoryToken(PendingUser),
+          provide: PendingUserRepository,
           useValue: {
             create: jest.fn(),
             save: jest.fn(),
@@ -140,7 +139,7 @@ describe('AuthService', () => {
     sessionService = module.get(SessionService) as jest.Mocked<SessionService>;
     usersService = module.get(UsersService) as jest.Mocked<UsersService>;
     activityService = module.get(ActivityService) as jest.Mocked<ActivityService>;
-    pendingUserRepository = module.get(getRepositoryToken(PendingUser)) as jest.Mocked<any>;
+    pendingUserRepository = module.get(PendingUserRepository) as jest.Mocked<any>;
     emailQueue = module.get(getQueueToken('email')) as jest.Mocked<any>;
     mailService = module.get(MailService) as jest.Mocked<MailService>;
     redisService = module.get(RedisService) as jest.Mocked<RedisService>;

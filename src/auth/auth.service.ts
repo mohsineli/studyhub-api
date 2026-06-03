@@ -1,7 +1,5 @@
 import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import * as Express from 'express';
 import { UsersService } from '../users/users.service';
 import { ActivityService } from '../users/activity.service';
@@ -17,6 +15,7 @@ import { UserRole } from '../users/entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import { TokenService } from './token.service';
 import { SessionService } from './session.service';
+import { PendingUserRepository } from '../common/repositories/pending-user.repository';
 
 @Injectable()
 export class AuthService {
@@ -26,8 +25,7 @@ export class AuthService {
     private configService: ConfigService,
     private tokenService: TokenService,
     private sessionService: SessionService,
-    @InjectRepository(PendingUser)
-    private pendingUserRepository: Repository<PendingUser>,
+    private pendingUserRepository: PendingUserRepository,
     @InjectQueue('email') private emailQueue: Queue,
     private mailService: MailService,
   ) {}
