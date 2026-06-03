@@ -1,4 +1,6 @@
-export function buildPagination(page = 1, limit = 12): { take: number; skip: number } {
+import { PAGINATION } from '../constants/defaults';
+
+export function buildPagination(page = PAGINATION.DEFAULT_PAGE, limit = PAGINATION.DEFAULT_LIMIT): { take: number; skip: number } {
   return { take: limit, skip: (page - 1) * limit };
 }
 

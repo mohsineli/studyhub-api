@@ -8,6 +8,7 @@ import { Resource } from '../resources/entities/resource.entity';
 import { Session } from '../auth/entities/session.entity';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { CACHE_TTL, TOP_N, ANALYTICS as ANALYTICS_WINDOWS } from '../common/constants/defaults';
 
 @Injectable()
 export class AnalyticsService {
@@ -28,26 +29,26 @@ export class AnalyticsService {
         start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         break;
       case '7d':
-        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        start = new Date(now.getTime() - ANALYTICS_WINDOWS.WINDOW_7_DAYS * 24 * 60 * 60 * 1000);
         break;
       case '30d':
-        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        start = new Date(now.getTime() - ANALYTICS_WINDOWS.WINDOW_30_DAYS * 24 * 60 * 60 * 1000);
         break;
       case '90d':
-        start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        start = new Date(now.getTime() - ANALYTICS_WINDOWS.WINDOW_90_DAYS * 24 * 60 * 60 * 1000);
         break;
       case 'year':
         start = new Date(now.getFullYear(), 0, 1);
         break;
       default:
-        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        start = new Date(now.getTime() - ANALYTICS_WINDOWS.WINDOW_30_DAYS * 24 * 60 * 60 * 1000);
     }
     return { start, end: now };
   }
 
   async getOverview(filter: string = '30d') {
     const cacheKey = CACHE_KEYS.ANALYTICS_OVERVIEW(filter);
-    return this.redisService.wrap(cacheKey, 120, async () => {
+    return this.redisService.wrap(cacheKey, CACHE_TTL.ANALYTICS, async () => {
       const range = this.getDateRange(filter);
       const where = { created_at: Between(range.start, range.end) as any };
 
@@ -90,7 +91,7 @@ export class AnalyticsService {
 
   async getUserAnalytics(filter: string = '30d') {
     const cacheKey = CACHE_KEYS.ANALYTICS_USERS(filter);
-    return this.redisService.wrap(cacheKey, 120, async () => {
+    return this.redisService.wrap(cacheKey, CACHE_TTL.ANALYTICS, async () => {
       const range = this.getDateRange(filter);
 
       const registrations = await this.userRepository
@@ -123,7 +124,7 @@ export class AnalyticsService {
         .createQueryBuilder('user')
         .select(["user.id", "user.name", "user.email", "user.points", "user.dept", "user.last_active_at"])
         .orderBy("user.last_active_at", "DESC")
-        .take(20)
+        .take(TOP_N.MOST_ACTIVE_USERS)
         .getMany();
 
       return {
@@ -144,7 +145,7 @@ export class AnalyticsService {
 
   async getActivityAnalytics(filter: string = '30d') {
     const cacheKey = CACHE_KEYS.ANALYTICS_ACTIVITY(filter);
-    return this.redisService.wrap(cacheKey, 120, async () => {
+    return this.redisService.wrap(cacheKey, CACHE_TTL.ANALYTICS, async () => {
       const range = this.getDateRange(filter);
 
       const loginActivity = await this.sessionRepository
@@ -176,7 +177,7 @@ export class AnalyticsService {
         .orderBy("EXTRACT(DOW FROM session.created_at)", "ASC")
         .getRawMany();
 
-      const lastActiveThreshold = new Date(Date.now() - 5 * 60 * 1000);
+      const lastActiveThreshold = new Date(Date.now() - ANALYTICS_WINDOWS.ACTIVE_USER_MINUTES * 60 * 1000);
       const currentlyActive = await this.userRepository.count({
         where: { last_active_at: MoreThanOrEqual(lastActiveThreshold) as any },
       });
@@ -199,7 +200,7 @@ export class AnalyticsService {
 
   async getContentAnalytics(filter: string = '30d') {
     const cacheKey = CACHE_KEYS.ANALYTICS_CONTENT(filter);
-    return this.redisService.wrap(cacheKey, 120, async () => {
+    return this.redisService.wrap(cacheKey, CACHE_TTL.ANALYTICS, async () => {
       const range = this.getDateRange(filter);
 
       const notesCreated = await this.noteRepository
@@ -234,7 +235,7 @@ export class AnalyticsService {
         .addSelect(['uploader.id', 'uploader.name'])
         .where('note.status = :status', { status: NoteStatus.APPROVED })
         .orderBy('note.downloads', 'DESC')
-        .take(10)
+        .take(TOP_N.POPULAR_NOTES)
         .getMany();
 
       const notesTotal = await this.noteRepository.count();

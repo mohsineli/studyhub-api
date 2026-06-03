@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth';
 import type { AuthenticatedRequest } from '../auth';
+import { PAGINATION } from '../common/constants/defaults';
 import { NotificationsService } from './notifications.service';
 
 @Controller('notifications')
@@ -18,8 +19,8 @@ export class NotificationsController {
     @Query('unreadOnly') unreadOnly?: string,
   ) {
     return this.notificationsService.findByUser(req.user.id, {
-      page: page || 1,
-      limit: limit || 20,
+      page: page || PAGINATION.DEFAULT_PAGE,
+      limit: limit || PAGINATION.NOTIFICATIONS_LIMIT,
       unreadOnly: unreadOnly === 'true',
     });
   }

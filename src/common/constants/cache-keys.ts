@@ -1,16 +1,18 @@
+import { PAGINATION } from './defaults';
+
 export const CACHE_KEYS = {
   NOTES_ALL: (sort?: string, page?: number, limit?: number) =>
-    `notes:${sort || 'latest'}:${page || 1}:${limit || 12}`,
+    `notes:${sort || 'latest'}:${page || PAGINATION.DEFAULT_PAGE}:${limit || PAGINATION.DEFAULT_LIMIT}`,
   NOTES_TRENDING: 'notes:trending',
   NOTES_MY: (uploaderId: number, page?: number, limit?: number) =>
-    `notes:my:${uploaderId}:${page || 1}:${limit || 12}`,
+    `notes:my:${uploaderId}:${page || PAGINATION.DEFAULT_PAGE}:${limit || PAGINATION.DEFAULT_LIMIT}`,
   NOTES_ONE: (id: number) => `notes:${id}`,
   NOTES_PATTERN: 'notes:*',
 
   RESOURCES_ALL: (page?: number, limit?: number) =>
-    `resources:${page || 1}:${limit || 12}`,
+    `resources:${page || PAGINATION.DEFAULT_PAGE}:${limit || PAGINATION.DEFAULT_LIMIT}`,
   RESOURCES_COURSES: (page?: number, limit?: number) =>
-    `resources:courses:${page || 1}:${limit || 12}`,
+    `resources:courses:${page || PAGINATION.DEFAULT_PAGE}:${limit || PAGINATION.DEFAULT_LIMIT}`,
   RESOURCES_TRENDING: 'resources:trending',
   RESOURCES_ONE: (id: number) => `resources:${id}`,
   RESOURCES_PATTERN: 'resources:*',
@@ -20,7 +22,7 @@ export const CACHE_KEYS = {
   LEADERBOARD_PATTERN: 'leaderboard:*',
 
   ACTIVE_USERS: (userRole?: string, page?: number, take?: number) =>
-    `activeUsers:${userRole || 'all'}:${page || 1}:${take || 12}`,
+    `activeUsers:${userRole || 'all'}:${page || PAGINATION.DEFAULT_PAGE}:${take || PAGINATION.DEFAULT_LIMIT}`,
   ACTIVE_USERS_PATTERN: 'activeUsers:*',
 
   USER_PROFILE: (id: number) => `user:profile:${id}`,

@@ -9,6 +9,7 @@ import { NoteReaction } from './entities/note-reaction.entity';
 import { RedisService } from '../redis/redis.service';
 import { NoteDownloadedEvent, NoteStatusChangedEvent } from '../common/events/index';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { CACHE_TTL, TOP_N, PAGINATION } from '../common/constants/defaults';
 import { buildPagination } from '../common/pagination/pagination.helper';
 
 @Injectable()
@@ -35,7 +36,7 @@ export class NotesService {
   async findAll(sort?: string, page?: number, limit?: number) {
     const cacheKey = CACHE_KEYS.NOTES_ALL(sort, page, limit);
 
-    return this.redisService.wrap(cacheKey, 300, async () => {
+    return this.redisService.wrap(cacheKey, CACHE_TTL.NOTES_LIST, async () => {
       const order: any = {};
       
       switch (sort) {
@@ -64,21 +65,21 @@ export class NotesService {
   }
 
   async findTrending(): Promise<Note[]> {
-    return this.redisService.wrap(CACHE_KEYS.NOTES_TRENDING, 600, async () => {
+    return this.redisService.wrap(CACHE_KEYS.NOTES_TRENDING, CACHE_TTL.NOTES_TRENDING, async () => {
       return await this.noteRepository.find({
         where: { status: NoteStatus.APPROVED },
         relations: ['uploader'],
         order: {
           downloads: 'DESC',
         },
-        take: 10,
+        take: TOP_N.TRENDING_NOTES,
       });
     });
   }
 
-  async findMyNotes(uploaderId: number, page = 1, limit = 12) {
+  async findMyNotes(uploaderId: number, page = PAGINATION.DEFAULT_PAGE, limit = PAGINATION.DEFAULT_LIMIT) {
     const cacheKey = CACHE_KEYS.NOTES_MY(uploaderId, page, limit);
-    return this.redisService.wrap(cacheKey, 30, async () => {
+    return this.redisService.wrap(cacheKey, CACHE_TTL.NOTES_SEARCH, async () => {
       const { take, skip } = buildPagination(page, limit);
 
       const [data, total] = await this.noteRepository.findAndCount({
@@ -104,7 +105,7 @@ export class NotesService {
   }
 
   async findOneCached(id: number) {
-    return this.redisService.wrap(CACHE_KEYS.NOTES_ONE(id), 120, () => this.findOne(id));
+    return this.redisService.wrap(CACHE_KEYS.NOTES_ONE(id), CACHE_TTL.NOTE_DETAIL, () => this.findOne(id));
   }
 
   async update(id: number, updateNoteDto: UpdateNoteDto, user: any) {

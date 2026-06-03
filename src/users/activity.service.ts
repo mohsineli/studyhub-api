@@ -6,6 +6,7 @@ import { Session } from '../auth/entities/session.entity';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { CACHE_TTL, ANALYTICS } from '../common/constants/defaults';
 import { buildPagination } from '../common/pagination/pagination.helper';
 
 @Injectable()
@@ -60,7 +61,7 @@ export class ActivityService {
     return { data: users, total, page: page || 1, limit: take };
   }
 
-  async findCurrentlyActiveUsers(userRole: string, minutes: number = 5, page?: number, limit?: number) {
+  async findCurrentlyActiveUsers(userRole: string, minutes: number = ANALYTICS.ACTIVE_USER_MINUTES, page?: number, limit?: number) {
     if (userRole !== UserRole.ADMIN) {
       await this.settingsService.enforcePermission(userRole, 'perm_view_active_users');
     }
@@ -68,7 +69,7 @@ export class ActivityService {
     const { take, skip } = buildPagination(page, limit);
     const cacheKey = CACHE_KEYS.ACTIVE_USERS(userRole, page, take);
 
-    return this.redisService.wrap(cacheKey, 30, async () => {
+    return this.redisService.wrap(cacheKey, CACHE_TTL.ACTIVITY, async () => {
       const query = this.usersRepository.createQueryBuilder('user')
         .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
         .where('user.last_active_at >= NOW() - make_interval(mins => :minutes)', { minutes })

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Repository, FindOptionsWhere, LessThan } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
+import { PAGINATION, OTHER } from '../common/constants/defaults';
 import { buildPagination } from '../common/pagination/pagination.helper';
 
 @Injectable()
@@ -44,8 +45,8 @@ export class NotificationsService {
       unreadOnly?: boolean;
     } = {},
   ): Promise<{ data: Notification[]; total: number; unreadCount: number }> {
-    const page = options.page || 1;
-    const limit = options.limit || 20;
+    const page = options.page || PAGINATION.DEFAULT_PAGE;
+    const limit = options.limit || PAGINATION.NOTIFICATIONS_LIMIT;
     const { take, skip } = buildPagination(page, limit);
 
     const where: FindOptionsWhere<Notification> = { user_id: userId };
@@ -94,7 +95,7 @@ export class NotificationsService {
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async cleanupOldReadNotifications(): Promise<void> {
     const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - OTHER.NOTIFICATION_RETENTION_DAYS);
 
     await this.notificationRepository.delete({
       is_read: true,

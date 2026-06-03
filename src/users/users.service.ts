@@ -10,6 +10,7 @@ import { NoteStatus } from '../notes/entities/note.entity';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { CACHE_TTL } from '../common/constants/defaults';
 
 @Injectable()
 export class UsersService {
@@ -66,7 +67,7 @@ export class UsersService {
   }
 
   async getPublicProfile(id: number): Promise<any> {
-    return this.redisService.wrap(CACHE_KEYS.USER_PROFILE(id), 120, async () => {
+    return this.redisService.wrap(CACHE_KEYS.USER_PROFILE(id), CACHE_TTL.USER_PROFILE, async () => {
       return this.fetchPublicProfile(id);
     });
   }

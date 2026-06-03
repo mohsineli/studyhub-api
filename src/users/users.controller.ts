@@ -11,6 +11,7 @@ import {
   Req,
   ParseIntPipe,
 } from '@nestjs/common';
+import { PAGINATION } from '../common/constants/defaults';
 import { UsersService } from './users.service';
 import { LeaderboardService } from './leaderboard.service';
 import { ActivityService } from './activity.service';
@@ -110,7 +111,7 @@ export class UsersController {
   ) {
     return this.usersService.findAll({
       search,
-      limit: limit ? +limit : 20,
+      limit: limit ? +limit : PAGINATION.USERS_LIMIT,
       offset: offset ? +offset : 0,
     }, req.user.role);
   }

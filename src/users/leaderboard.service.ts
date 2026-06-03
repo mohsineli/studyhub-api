@@ -6,6 +6,7 @@ import { NoteStatus } from '../notes/entities/note.entity';
 import { Setting } from '../admin/entities/setting.entity';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { CACHE_TTL, TOP_N, OTHER } from '../common/constants/defaults';
 
 @Injectable()
 export class LeaderboardService {
@@ -24,7 +25,7 @@ export class LeaderboardService {
 
     const cacheKey = CACHE_KEYS.LEADERBOARD_CURRENT;
 
-    return this.redisService.wrap(cacheKey, 300, async () => {
+    return this.redisService.wrap(cacheKey, CACHE_TTL.LEADERBOARD, async () => {
       const query = this.usersRepository.createQueryBuilder('user')
         .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.created_at', 'user.profile_pic', 'user.dept'])
         .loadRelationCountAndMap('user.noteCount', 'user.notes', 'note', qb =>
@@ -33,7 +34,8 @@ export class LeaderboardService {
         .where('user.banned = :banned', { banned: false })
         .orderBy('user.points', 'DESC')
         .addOrderBy('user.name', 'ASC')
-        .take(30);
+        .take(TOP_N.LEADERBOARD);
+      });
 
       return await query.getMany() as (User & { noteCount: number })[];
     });
@@ -46,7 +48,7 @@ export class LeaderboardService {
       .where('user.banned = :banned', { banned: false })
       .orderBy('user.points', 'DESC')
       .addOrderBy('user.name', 'ASC')
-      .take(30)
+      .take(TOP_N.LEADERBOARD)
       .getMany();
 
     const clean = leaders.map(u => ({
@@ -84,8 +86,8 @@ export class LeaderboardService {
       await this.usersRepository
         .createQueryBuilder()
         .update(User)
-        .set({ points: 500 })
-        .where('points >= :max', { max: 500 })
+        .set({ points: OTHER.LEADERBOARD_POINTS_THRESHOLD })
+        .where('points >= :max', { max: OTHER.LEADERBOARD_POINTS_THRESHOLD })
         .execute();
 
       await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
