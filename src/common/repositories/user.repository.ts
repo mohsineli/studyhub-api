@@ -18,6 +18,14 @@ export class UserRepository implements IUserRepository {
     return this.repo.findOne({ where: { email } });
   }
 
+  async findOne(options: { where: any; relations?: string[] }): Promise<User | null> {
+    return this.repo.findOne(options as any);
+  }
+
+  async find(options: { where?: any; relations?: string[]; order?: any; take?: number; select?: string[] }): Promise<User[]> {
+    return this.repo.find(options as any);
+  }
+
   async save(user: Partial<User>): Promise<User> {
     return this.repo.save(user);
   }
@@ -30,8 +38,8 @@ export class UserRepository implements IUserRepository {
     return this.repo.remove(user);
   }
 
-  async count(): Promise<number> {
-    return this.repo.count();
+  async count(options?: { where?: any }): Promise<number> {
+    return this.repo.count(options ?? {});
   }
 
   async findTopByPoints(limit: number): Promise<User[]> {
@@ -39,6 +47,10 @@ export class UserRepository implements IUserRepository {
       order: { points: 'DESC' },
       take: limit,
     });
+  }
+
+  async increment(where: any, column: string, amount: number): Promise<any> {
+    return this.repo.increment(where, column, amount);
   }
 
   async incrementPoints(id: number, amount: number): Promise<void> {

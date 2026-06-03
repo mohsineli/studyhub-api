@@ -1,23 +1,24 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
-import { User, UserRole } from '../users/entities/user.entity';
-import { Note, NoteStatus } from '../notes/entities/note.entity';
-import { Review } from '../reviews/entities/review.entity';
-import { Resource } from '../resources/entities/resource.entity';
-import { Session } from '../auth/entities/session.entity';
+import { Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { UserRole } from '../users/entities/user.entity';
+import { NoteStatus } from '../notes/entities/note.entity';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
 import { CACHE_TTL, TOP_N, ANALYTICS as ANALYTICS_WINDOWS } from '../common/constants/defaults';
+import { UserRepository } from '../common/repositories/user.repository';
+import { NoteRepository } from '../common/repositories/note.repository';
+import { ReviewRepository } from '../common/repositories/review.repository';
+import { ResourceRepository } from '../common/repositories/resource.repository';
+import { SessionRepository } from '../common/repositories/session.repository';
 
 @Injectable()
 export class AnalyticsService {
   constructor(
-    @InjectRepository(User) private userRepository: Repository<User>,
-    @InjectRepository(Note) private noteRepository: Repository<Note>,
-    @InjectRepository(Review) private reviewRepository: Repository<Review>,
-    @InjectRepository(Resource) private resourceRepository: Repository<Resource>,
-    @InjectRepository(Session) private sessionRepository: Repository<Session>,
+    private readonly userRepository: UserRepository,
+    private readonly noteRepository: NoteRepository,
+    private readonly reviewRepository: ReviewRepository,
+    private readonly resourceRepository: ResourceRepository,
+    private readonly sessionRepository: SessionRepository,
     private readonly redisService: RedisService,
   ) {}
 

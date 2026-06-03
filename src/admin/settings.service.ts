@@ -1,10 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { UserRole } from '../users/entities/user.entity';
 import { Setting } from './entities/setting.entity';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { SettingRepository } from '../common/repositories/setting.repository';
 import { CACHE_TTL } from '../common/constants/defaults';
 
 export const MODERATOR_PERMISSIONS = [
@@ -16,7 +15,7 @@ export const MODERATOR_PERMISSIONS = [
 @Injectable()
 export class SettingsService {
   constructor(
-    @InjectRepository(Setting) private readonly settingRepository: Repository<Setting>,
+    private readonly settingRepository: SettingRepository,
     private readonly redisService: RedisService,
   ) {}
 

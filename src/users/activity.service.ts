@@ -1,26 +1,25 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
-import { Session } from '../auth/entities/session.entity';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
 import { CACHE_TTL, ANALYTICS } from '../common/constants/defaults';
 import { buildPagination } from '../common/pagination/pagination.helper';
+import { UserRepository } from '../common/repositories/user.repository';
+import { SessionRepository } from '../common/repositories/session.repository';
 
 @Injectable()
 export class ActivityService {
   constructor(
-    @InjectRepository(User) private readonly usersRepository: Repository<User>,
-    @InjectRepository(Session) private readonly sessionRepository: Repository<Session>,
+    private readonly usersRepository: UserRepository,
+    private readonly sessionRepository: SessionRepository,
     private readonly settingsService: SettingsService,
     private readonly redisService: RedisService,
   ) {}
 
   async updateLastActive(id: number): Promise<void> {
     await this.usersRepository
-      .createQueryBuilder()
+      .createQueryBuilder('user')
       .update(User)
       .set({ last_active_at: () => 'NOW()' })
       .where('id = :id', { id })

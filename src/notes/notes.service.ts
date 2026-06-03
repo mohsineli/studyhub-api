@@ -1,24 +1,21 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { Note, NoteStatus } from './entities/note.entity';
-import { NoteReaction } from './entities/note-reaction.entity';
 import { RedisService } from '../redis/redis.service';
 import { NoteDownloadedEvent, NoteStatusChangedEvent } from '../common/events/index';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
 import { CACHE_TTL, TOP_N, PAGINATION } from '../common/constants/defaults';
 import { buildPagination } from '../common/pagination/pagination.helper';
+import { NoteRepository } from '../common/repositories/note.repository';
+import { NoteReactionRepository } from '../common/repositories/note-reaction.repository';
 
 @Injectable()
 export class NotesService {
   constructor(
-    @InjectRepository(Note)
-    private readonly noteRepository: Repository<Note>,
-    @InjectRepository(NoteReaction)
-    private readonly noteReactionRepository: Repository<NoteReaction>,
+    private readonly noteRepository: NoteRepository,
+    private readonly noteReactionRepository: NoteReactionRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly redisService: RedisService,
   ) {}

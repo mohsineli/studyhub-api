@@ -1,16 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { Repository, FindOptionsWhere, LessThan } from 'typeorm';
+import { LessThan } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
 import { PAGINATION, OTHER } from '../common/constants/defaults';
 import { buildPagination } from '../common/pagination/pagination.helper';
+import { NotificationRepository } from '../common/repositories/notification.repository';
 
 @Injectable()
 export class NotificationsService {
   constructor(
-    @InjectRepository(Notification)
-    private readonly notificationRepository: Repository<Notification>,
+    private readonly notificationRepository: NotificationRepository,
   ) {}
 
   async create(data: {
@@ -49,7 +48,7 @@ export class NotificationsService {
     const limit = options.limit || PAGINATION.NOTIFICATIONS_LIMIT;
     const { take, skip } = buildPagination(page, limit);
 
-    const where: FindOptionsWhere<Notification> = { user_id: userId };
+    const where: any = { user_id: userId };
     if (options.unreadOnly) where.is_read = false;
 
     const [data, total] = await this.notificationRepository.findAndCount({
@@ -57,7 +56,7 @@ export class NotificationsService {
       order: { created_at: 'DESC' },
       take,
       skip,
-    });
+    } as any);
 
     const unreadCount = await this.notificationRepository.count({
       where: { user_id: userId, is_read: false },
@@ -77,7 +76,7 @@ export class NotificationsService {
       { id, user_id: userId },
       { is_read: true, read_at: new Date() },
     );
-    return this.notificationRepository.findOne({ where: { id } });
+    return this.notificationRepository.findOne({ where: { id } } as any);
   }
 
   async markAllAsRead(userId: number): Promise<void> {

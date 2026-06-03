@@ -1,6 +1,4 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { Resource, ResourceStatus } from './entities/resource.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
@@ -9,12 +7,12 @@ import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
 import { CACHE_TTL, TOP_N, PAGINATION } from '../common/constants/defaults';
 import { buildPagination } from '../common/pagination/pagination.helper';
+import { ResourceRepository } from '../common/repositories/resource.repository';
 
 @Injectable()
 export class ResourcesService {
   constructor(
-    @InjectRepository(Resource)
-    private readonly resourceRepository: Repository<Resource>,
+    private readonly resourceRepository: ResourceRepository,
     private readonly settingsService: SettingsService,
     private readonly redisService: RedisService,
   ) {}

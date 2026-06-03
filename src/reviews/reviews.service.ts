@@ -1,28 +1,26 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, IsNull, Like } from 'typeorm';
+import { In, IsNull, Like } from 'typeorm';
 import { Review } from './entities/review.entity';
 import { ReviewLike } from './entities/review-like.entity';
 import { Note } from '../notes/entities/note.entity';
-import { User } from '../users/entities/user.entity';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/entities/notification.entity';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import { ReviewRepository } from '../common/repositories/review.repository';
+import { ReviewLikeRepository } from '../common/repositories/review-like.repository';
+import { NoteRepository } from '../common/repositories/note.repository';
+import { UserRepository } from '../common/repositories/user.repository';
 
 @Injectable()
 export class ReviewsService {
   constructor(
-    @InjectRepository(Review)
-    private readonly reviewRepository: Repository<Review>,
-    @InjectRepository(ReviewLike)
-    private readonly reviewLikeRepository: Repository<ReviewLike>,
-    @InjectRepository(Note)
-    private readonly noteRepository: Repository<Note>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private readonly reviewRepository: ReviewRepository,
+    private readonly reviewLikeRepository: ReviewLikeRepository,
+    private readonly noteRepository: NoteRepository,
+    private readonly userRepository: UserRepository,
     private readonly redisService: RedisService,
     private readonly notificationsService: NotificationsService,
   ) {}

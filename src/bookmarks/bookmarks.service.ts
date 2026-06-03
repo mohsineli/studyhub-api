@@ -1,14 +1,12 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { Bookmark } from './entities/bookmark.entity';
 import { CreateBookmarkDto } from './dto/create-bookmark.dto';
+import { BookmarkRepository } from '../common/repositories/bookmark.repository';
 
 @Injectable()
 export class BookmarksService {
   constructor(
-    @InjectRepository(Bookmark)
-    private readonly bookmarkRepository: Repository<Bookmark>,
+    private readonly bookmarkRepository: BookmarkRepository,
   ) {}
 
   async create(createBookmarkDto: CreateBookmarkDto, userId: number) {

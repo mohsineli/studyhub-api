@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { ResourcesService } from './resources.service';
-import { Resource, ResourceStatus } from './entities/resource.entity';
+import { ResourceStatus } from './entities/resource.entity';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
+import { ResourceRepository } from '../common/repositories/resource.repository';
 
 describe('ResourcesService', () => {
   let service: ResourcesService;
@@ -31,7 +31,7 @@ describe('ResourcesService', () => {
       providers: [
         ResourcesService,
         {
-          provide: getRepositoryToken(Resource),
+          provide: ResourceRepository,
           useValue: {
             create: jest.fn(),
             save: jest.fn(),
@@ -40,6 +40,7 @@ describe('ResourcesService', () => {
             findAndCount: jest.fn(),
             createQueryBuilder: jest.fn(),
             remove: jest.fn(),
+            count: jest.fn(),
           },
         },
         {
@@ -62,7 +63,7 @@ describe('ResourcesService', () => {
     }).compile();
 
     service = module.get<ResourcesService>(ResourcesService);
-    resourceRepository = module.get(getRepositoryToken(Resource)) as jest.Mocked<any>;
+    resourceRepository = module.get(ResourceRepository) as jest.Mocked<any>;
     settingsService = module.get(SettingsService) as jest.Mocked<SettingsService>;
     redisService = module.get(RedisService) as jest.Mocked<RedisService>;
   });

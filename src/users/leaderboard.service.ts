@@ -1,18 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { NoteStatus } from '../notes/entities/note.entity';
-import { Setting } from '../admin/entities/setting.entity';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
 import { CACHE_TTL, TOP_N, OTHER } from '../common/constants/defaults';
+import { UserRepository } from '../common/repositories/user.repository';
+import { SettingRepository } from '../common/repositories/setting.repository';
 
 @Injectable()
 export class LeaderboardService {
   constructor(
-    @InjectRepository(User) private readonly usersRepository: Repository<User>,
-    @InjectRepository(Setting) private readonly settingRepository: Repository<Setting>,
+    private readonly usersRepository: UserRepository,
+    private readonly settingRepository: SettingRepository,
     private readonly redisService: RedisService,
   ) {}
 
@@ -83,7 +82,7 @@ export class LeaderboardService {
       await this.settingRepository.save(resetSetting);
 
       await this.usersRepository
-        .createQueryBuilder()
+        .createQueryBuilder('user')
         .update(User)
         .set({ points: OTHER.LEADERBOARD_POINTS_THRESHOLD })
         .where('points >= :max', { max: OTHER.LEADERBOARD_POINTS_THRESHOLD })
