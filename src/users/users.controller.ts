@@ -17,6 +17,7 @@ import { ActivityService } from './activity.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard, RolesGuard } from '../auth';
+import type { AuthenticatedRequest } from '../auth';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from './entities/user.entity';
 
@@ -37,7 +38,7 @@ export class UsersController {
 
   @Patch('profile')
   @Roles(UserRole.STUDENT, UserRole.ADMIN, UserRole.MODERATOR)
-  updateProfile(@Req() req: any, @Body() updateUserDto: UpdateUserDto) {
+  updateProfile(@Req() req: AuthenticatedRequest, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.updateProfile(req.user.id, updateUserDto);
   }
 
@@ -58,7 +59,7 @@ export class UsersController {
    @Get('active')
    @Roles(UserRole.ADMIN, UserRole.MODERATOR)
    getActiveUsersByDay(
-     @Req() req: any,
+     @Req() req: AuthenticatedRequest,
      @Query('date') date?: string,
      @Query('page') page?: number,
      @Query('limit') limit?: number,
@@ -69,7 +70,7 @@ export class UsersController {
    @Get('active/now')
    @Roles(UserRole.ADMIN, UserRole.MODERATOR)
    getCurrentlyActive(
-     @Req() req: any,
+     @Req() req: AuthenticatedRequest,
      @Query('minutes') minutes?: number,
      @Query('page') page?: number,
      @Query('limit') limit?: number,
@@ -78,7 +79,7 @@ export class UsersController {
    }
 
   @Post(':id/ban')
-  banUser(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  banUser(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.usersService.banUser(id, req.user.id);
   }
 
@@ -88,12 +89,12 @@ export class UsersController {
   }
 
   @Post(':id/promote')
-  promoteToModerator(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  promoteToModerator(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.usersService.setRole(id, UserRole.MODERATOR, req.user.id);
   }
 
   @Post(':id/demote')
-  demoteToStudent(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  demoteToStudent(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.usersService.setRole(id, UserRole.STUDENT, req.user.id);
   }
 
@@ -102,7 +103,7 @@ export class UsersController {
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   findAll(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('search') search?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,

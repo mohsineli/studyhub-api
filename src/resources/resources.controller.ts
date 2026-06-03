@@ -15,6 +15,7 @@ import { ResourcesService } from './resources.service';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
 import { JwtAuthGuard, RolesGuard } from '../auth';
+import type { AuthenticatedRequest } from '../auth';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { ResourceStatus } from './entities/resource.entity';
@@ -71,7 +72,7 @@ export class ResourcesController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  create(@Body() createResourceDto: CreateResourceDto, @Req() req: any) {
+  create(@Body() createResourceDto: CreateResourceDto, @Req() req: AuthenticatedRequest) {
     return this.resourcesService.create(createResourceDto, req.user.id);
   }
 
@@ -82,7 +83,7 @@ export class ResourcesController {
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: ResourceStatus,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.resourcesService.updateStatus(id, status, req.user.role);
   }
@@ -94,7 +95,7 @@ export class ResourcesController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateResourceDto: UpdateResourceDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.resourcesService.update(id, updateResourceDto, req.user);
   }
@@ -109,7 +110,7 @@ export class ResourcesController {
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.resourcesService.remove(id, req.user);
   }
 }

@@ -2,8 +2,8 @@ import {
   Controller, Get, Patch, Delete, Param, Query, Body, Req, UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth';
+import type { AuthenticatedRequest } from '../auth';
 import { NotificationsService } from './notifications.service';
-import { Request } from 'express';
 
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
@@ -12,7 +12,7 @@ export class NotificationsController {
 
   @Get()
   async findAll(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('unreadOnly') unreadOnly?: string,
@@ -25,26 +25,26 @@ export class NotificationsController {
   }
 
   @Get('unread-count')
-  async getUnreadCount(@Req() req: any) {
+  async getUnreadCount(@Req() req: AuthenticatedRequest) {
     const count = await this.notificationsService.getUnreadCount(req.user.id);
     return { count };
   }
 
   @Patch(':id/read')
-  async markAsRead(@Req() req: any, @Param('id') id: string) {
+  async markAsRead(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     const notification = await this.notificationsService.markAsRead(+id, req.user.id);
     if (!notification) return { success: false };
     return { success: true, notification };
   }
 
   @Patch('read-all')
-  async markAllAsRead(@Req() req: any) {
+  async markAllAsRead(@Req() req: AuthenticatedRequest) {
     await this.notificationsService.markAllAsRead(req.user.id);
     return { success: true };
   }
 
   @Delete(':id')
-  async delete(@Req() req: any, @Param('id') id: string) {
+  async delete(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     const deleted = await this.notificationsService.delete(+id, req.user.id);
     return { success: deleted };
   }
