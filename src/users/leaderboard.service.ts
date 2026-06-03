@@ -35,7 +35,6 @@ export class LeaderboardService {
         .orderBy('user.points', 'DESC')
         .addOrderBy('user.name', 'ASC')
         .take(TOP_N.LEADERBOARD);
-      });
 
       return await query.getMany() as (User & { noteCount: number })[];
     });

@@ -15,7 +15,7 @@ export const CACHE_TTL = {
   ADMIN_SETTING: 60,
   ADMIN_PERMISSIONS: 60,
   ANALYTICS: 120,
-} as const;
+};
 
 export const PAGINATION = {
   DEFAULT_PAGE: 1,
@@ -23,7 +23,7 @@ export const PAGINATION = {
   MAX_LIMIT: 100,
   NOTIFICATIONS_LIMIT: 20,
   USERS_LIMIT: 20,
-} as const;
+};
 
 export const TOP_N = {
   LEADERBOARD: 30,
@@ -32,14 +32,14 @@ export const TOP_N = {
   POPULAR_NOTES: 10,
   TOP_USERS: 10,
   MOST_ACTIVE_USERS: 20,
-} as const;
+};
 
 export const ANALYTICS = {
   WINDOW_7_DAYS: 7,
   WINDOW_30_DAYS: 30,
   WINDOW_90_DAYS: 90,
   ACTIVE_USER_MINUTES: 5,
-} as const;
+};
 
 export const OTHER = {
   NOTIFICATION_RETENTION_DAYS: 30,
@@ -50,4 +50,4 @@ export const OTHER = {
   REDIS_RETRY_BASE_MS: 100,
   REDIS_RETRY_MAX_MS: 5000,
   REDIS_SCAN_COUNT: 100,
-} as const;
+};
