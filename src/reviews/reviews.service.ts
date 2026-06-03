@@ -200,13 +200,13 @@ export class ReviewsService {
     }));
 
     if (currentUserId) {
-      const allReviewIds = this.collectReviewIds(reviews);
+      const allReviewIds = this.collectReviewIds(result);
       if (allReviewIds.length > 0) {
         const votes = await this.reviewLikeRepository.find({
           where: { review_id: In(allReviewIds), user_id: currentUserId },
         });
         const voteMap = new Map(votes.map(v => [v.review_id, v.type]));
-        this.attachVotes(reviews, voteMap);
+        this.attachVotes(result, voteMap);
       }
     }
 
