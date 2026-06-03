@@ -9,6 +9,7 @@ import { NoteReaction } from './entities/note-reaction.entity';
 import { RedisService } from '../redis/redis.service';
 import { NoteDownloadedEvent, NoteStatusChangedEvent } from '../common/events/index';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { buildPagination } from '../common/pagination/pagination.helper';
 
 @Injectable()
 export class NotesService {
@@ -48,8 +49,7 @@ export class NotesService {
           order.created_at = 'DESC';
       }
 
-      const take = limit || 12;
-      const skip = page ? (page - 1) * take : 0;
+      const { take, skip } = buildPagination(page, limit);
 
       const [data, total] = await this.noteRepository.findAndCount({
         where: { status: NoteStatus.APPROVED },
@@ -79,8 +79,7 @@ export class NotesService {
   async findMyNotes(uploaderId: number, page = 1, limit = 12) {
     const cacheKey = CACHE_KEYS.NOTES_MY(uploaderId, page, limit);
     return this.redisService.wrap(cacheKey, 30, async () => {
-      const take = limit;
-      const skip = (page - 1) * take;
+      const { take, skip } = buildPagination(page, limit);
 
       const [data, total] = await this.noteRepository.findAndCount({
         where: { uploader_id: uploaderId },
@@ -143,8 +142,7 @@ export class NotesService {
   }
 
   async findPending(page?: number, limit?: number) {
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
+    const { take, skip } = buildPagination(page, limit);
 
     const [data, total] = await this.noteRepository.findAndCount({
       where: { status: NoteStatus.PENDING },

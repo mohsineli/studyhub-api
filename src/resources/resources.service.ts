@@ -7,6 +7,7 @@ import { UpdateResourceDto } from './dto/update-resource.dto';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { buildPagination } from '../common/pagination/pagination.helper';
 
 @Injectable()
 export class ResourcesService {
@@ -36,8 +37,7 @@ export class ResourcesService {
     const cacheKey = CACHE_KEYS.RESOURCES_ALL(page, limit);
 
     return this.redisService.wrap(cacheKey, 300, async () => {
-      const take = limit || 12;
-      const skip = page ? (page - 1) * take : 0;
+      const { take, skip } = buildPagination(page, limit);
 
       const [data, total] = await this.resourceRepository.findAndCount({
         where: { status: ResourceStatus.APPROVED },
@@ -52,8 +52,7 @@ export class ResourcesService {
   }
 
   async findPending(page?: number, limit?: number) {
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
+    const { take, skip } = buildPagination(page, limit);
 
     const [data, total] = await this.resourceRepository.findAndCount({
       where: { status: ResourceStatus.PENDING },
@@ -70,8 +69,7 @@ export class ResourcesService {
     const cacheKey = CACHE_KEYS.RESOURCES_COURSES(page, limit);
 
     return this.redisService.wrap(cacheKey, 300, async () => {
-      const take = limit;
-      const skip = (page - 1) * take;
+      const { take, skip } = buildPagination(page, limit);
 
       const data = await this.resourceRepository
         .createQueryBuilder('resource')

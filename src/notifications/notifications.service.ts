@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Repository, FindOptionsWhere, LessThan } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
+import { buildPagination } from '../common/pagination/pagination.helper';
 
 @Injectable()
 export class NotificationsService {
@@ -45,7 +46,7 @@ export class NotificationsService {
   ): Promise<{ data: Notification[]; total: number; unreadCount: number }> {
     const page = options.page || 1;
     const limit = options.limit || 20;
-    const skip = (page - 1) * limit;
+    const { take, skip } = buildPagination(page, limit);
 
     const where: FindOptionsWhere<Notification> = { user_id: userId };
     if (options.unreadOnly) where.is_read = false;
@@ -53,7 +54,7 @@ export class NotificationsService {
     const [data, total] = await this.notificationRepository.findAndCount({
       where,
       order: { created_at: 'DESC' },
-      take: limit,
+      take,
       skip,
     });
 

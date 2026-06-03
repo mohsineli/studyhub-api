@@ -6,6 +6,7 @@ import { Session } from '../auth/entities/session.entity';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
+import { buildPagination } from '../common/pagination/pagination.helper';
 
 @Injectable()
 export class ActivityService {
@@ -40,8 +41,7 @@ export class ActivityService {
       dateStr = `${year}-${month}-${day}`;
     }
 
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
+    const { take, skip } = buildPagination(page, limit);
 
     const sessionSubquery = this.sessionRepository
       .createQueryBuilder('session')
@@ -65,8 +65,7 @@ export class ActivityService {
       await this.settingsService.enforcePermission(userRole, 'perm_view_active_users');
     }
 
-    const take = limit || 12;
-    const skip = page ? (page - 1) * take : 0;
+    const { take, skip } = buildPagination(page, limit);
     const cacheKey = CACHE_KEYS.ACTIVE_USERS(userRole, page, take);
 
     return this.redisService.wrap(cacheKey, 30, async () => {
