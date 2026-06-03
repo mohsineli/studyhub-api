@@ -4,10 +4,11 @@ import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
-import { JwtAuthGuard } from '../auth';
+import { JwtAuthGuard, Public } from '../auth';
 import type { AuthenticatedRequest } from '../auth';
 
 @Controller('reviews')
+@UseGuards(JwtAuthGuard)
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
@@ -32,6 +33,7 @@ export class ReviewsController {
   }
 
   @Get('note/:noteId')
+  @Public()
   findByNote(
     @Param('noteId', ParseIntPipe) noteId: number,
     @Req() req: Request,
