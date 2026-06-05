@@ -20,6 +20,7 @@ import { QueueModule } from './queue/queue.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RepositoriesModule } from './common/repositories/repositories.module';
 import { NoteEventsListener } from './common/events/note-events.listener';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -53,6 +54,12 @@ import { NoteEventsListener } from './common/events/note-events.listener';
         THROTTLE_TTL: Joi.number().min(1000).max(3600000).default(60000),
         THROTTLE_LIMIT: Joi.number().min(1).max(10000).default(100),
         BCRYPT_SALT_ROUNDS: Joi.number().min(4).max(16).default(10),
+        R2_ACCESS_KEY_ID: Joi.string().optional(),
+        R2_SECRET_ACCESS_KEY: Joi.string().optional(),
+        R2_ENDPOINT: Joi.string().uri().optional(),
+        R2_BUCKET: Joi.string().optional(),
+        R2_PUBLIC_URL: Joi.string().uri().optional(),
+        R2_PROXY_URL: Joi.string().optional(),
       }),
     }),
     TypeOrmModule.forRootAsync({
@@ -125,6 +132,7 @@ import { NoteEventsListener } from './common/events/note-events.listener';
     ReviewsModule,
     ResourcesModule,
     AdminModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

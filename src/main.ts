@@ -21,8 +21,16 @@ process.emitWarning = function (warning, ...args) {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Security headers
-  app.use(helmet());
+  // Security headers — allow frontend origins to frame the storage proxy for PDF/image previews
+  app.use(helmet({
+    crossOriginEmbedderPolicy: false,
+    frameguard: false,
+    contentSecurityPolicy: {
+      directives: {
+        frameAncestors: ["'self'", "http://localhost:3000", "http://127.0.0.1:3000", "https://studyhubbd.vercel.app"],
+      },
+    },
+  }));
 
   // Enable cookie parsing — required for reading refresh_token cookie
   app.use(cookieParser());
