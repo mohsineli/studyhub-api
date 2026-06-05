@@ -47,12 +47,8 @@ export class StorageService {
 
     const uploadUrl = await getSignedUrl(this.s3!, command, { expiresIn: 7200 });
 
-    const proxyBase = this.config.get<string>('R2_PROXY_URL');
-    const publicUrl = proxyBase
-      ? `${proxyBase}${key}`
-      : `${this.publicUrlBase}/${key}`;
-
-    return { uploadUrl, publicUrl };
+    // Industry Standard: Return only the raw key, let the frontend prepend its own CDN/public URL.
+    return { uploadUrl, publicUrl: key };
   }
 
   async getObjectStream(key: string): Promise<StreamableFile> {
