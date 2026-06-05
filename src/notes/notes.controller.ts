@@ -1,4 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, ParseIntPipe, Query } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import type { Request } from 'express';
 import { NotesService } from './notes.service';
 import { CreateNoteDto } from './dto/create-note.dto';
@@ -14,7 +16,10 @@ import { Public } from '../auth/public.decorator';
 @Controller('notes')
 @UseGuards(JwtAuthGuard)
 export class NotesController {
-  constructor(private readonly notesService: NotesService) {}
+  constructor(
+    private readonly notesService: NotesService,
+    @InjectQueue('moderation') private moderationQueue: Queue,
+  ) {}
 
   @Post()
   create(@Body() createNoteDto: CreateNoteDto, @Req() req: AuthenticatedRequest) {
@@ -59,12 +64,25 @@ export class NotesController {
   @Patch(':id/status')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  updateStatus(
+  async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: NoteStatus,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.notesService.updateStatus(id, status, req.user.role);
+    const note = await this.notesService.findOne(id);
+    const job = await this.moderationQueue.add('update-status', {
+      type: 'note',
+      itemId: id,
+      newStatus: status,
+      adminId: req.user.id,
+      adminRole: req.user.role,
+      itemTitle: note.title,
+      uploaderId: note.uploader_id,
+    }, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 2000 },
+    });
+    return { queued: true, jobId: job.id };
   }
 
   @Get(':id')

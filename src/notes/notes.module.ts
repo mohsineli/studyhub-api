@@ -12,5 +12,6 @@ import { NoteEventsListener } from '../common/events/note-events.listener';
   imports: [TypeOrmModule.forFeature([Note, NoteReaction, User]), AdminModule],
   controllers: [NotesController],
   providers: [NotesService, NoteEventsListener],
+  exports: [NotesService],
 })
 export class NotesModule {}

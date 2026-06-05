@@ -11,6 +11,8 @@ import {
   ParseIntPipe,
   Query,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { ResourcesService } from './resources.service';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
@@ -23,7 +25,10 @@ import { ResourceStatus } from './entities/resource.entity';
 @Controller('resources')
 @UseGuards(JwtAuthGuard)
 export class ResourcesController {
-  constructor(private readonly resourcesService: ResourcesService) {}
+  constructor(
+    private readonly resourcesService: ResourcesService,
+    @InjectQueue('moderation') private moderationQueue: Queue,
+  ) {}
 
   // Any authenticated user can browse approved resources
   @Get()
@@ -80,12 +85,25 @@ export class ResourcesController {
   @Patch(':id/status')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  updateStatus(
+  async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: ResourceStatus,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.resourcesService.updateStatus(id, status, req.user.role);
+    const resource = await this.resourcesService.findOne(id);
+    const job = await this.moderationQueue.add('update-status', {
+      type: 'resource',
+      itemId: id,
+      newStatus: status,
+      adminId: req.user.id,
+      adminRole: req.user.role,
+      itemTitle: resource.title,
+      uploaderId: resource.uploader_id,
+    }, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 2000 },
+    });
+    return { queued: true, jobId: job.id };
   }
 
   // Owner, admin, or moderator can edit a resource
