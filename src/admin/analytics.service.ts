@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { UserRole } from '../users/entities/user.entity';
 import { NoteStatus } from '../notes/entities/note.entity';
+import { ResourceStatus } from '../resources/entities/resource.entity';
 import { RedisService } from '../redis/redis.service';
 import { CACHE_KEYS } from '../common/constants/cache-keys';
 import { CACHE_TTL, TOP_N, ANALYTICS as ANALYTICS_WINDOWS } from '../common/constants/defaults';
@@ -247,6 +248,14 @@ export class AnalyticsService {
         .select("SUM(note.downloads)", "total")
         .getRawOne();
 
+      const resourcesTotal = await this.resourceRepository.count();
+      const resourcesApproved = await this.resourceRepository.count({ where: { status: ResourceStatus.APPROVED } });
+      const resourcesPending = await this.resourceRepository.count({ where: { status: ResourceStatus.PENDING } });
+      const resourceDownloads = await this.resourceRepository
+        .createQueryBuilder('resource')
+        .select("SUM(resource.downloads)", "total")
+        .getRawOne();
+
       const reviewsCreated = await this.reviewRepository
         .createQueryBuilder('review')
         .select("DATE(review.created_at)", "date")
@@ -274,6 +283,10 @@ export class AnalyticsService {
           approved: notesApproved,
           pending: notesPending,
           totalDownloads: parseInt(totalDownloads?.total || '0', 10),
+          totalResources: resourcesTotal,
+          approvedResources: resourcesApproved,
+          pendingResources: resourcesPending,
+          resourceDownloads: parseInt(resourceDownloads?.total || '0', 10),
         },
       };
     });
