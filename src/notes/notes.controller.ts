@@ -27,6 +27,7 @@ export class NotesController {
   }
 
   @Get()
+  @Public()
   findAll(
     @Query('sort') sort?: string,
     @Query('page') page?: number,
