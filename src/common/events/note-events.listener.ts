@@ -40,48 +40,57 @@ export class NoteEventsListener {
 
   @OnEvent('note.status-changed')
   async handleNoteStatusChanged(event: NoteStatusChangedEvent) {
-    if (event.status === NoteStatus.APPROVED) {
-      await this.userRepository.increment({ id: event.uploaderId }, 'points', OTHER.POINTS_PER_NOTE_APPROVAL);
+    const lockKey = `event:note:${event.noteId}:${event.status}`;
+    const acquired = await this.redisService.setnx(lockKey, '1', 300);
+    if (!acquired) return;
 
-      const user = await this.userRepository.findById(event.uploaderId);
-      if (user) {
-        this.websocketService.emitToUser(event.uploaderId, 'points:updated', { points: user.points });
+    try {
+      if (event.status === NoteStatus.APPROVED) {
+        await this.userRepository.increment({ id: event.uploaderId }, 'points', OTHER.POINTS_PER_NOTE_APPROVAL);
+
+        const user = await this.userRepository.findById(event.uploaderId);
+        if (user) {
+          this.websocketService.emitToUser(event.uploaderId, 'points:updated', { points: user.points });
+        }
+
+        await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
+        const notification = await this.notificationsService.create({
+          userId: event.uploaderId,
+          type: NotificationType.NOTE_APPROVED,
+          title: 'Your note has been approved',
+          message: `"${event.title}" has been approved and is now visible to everyone.`,
+          entityType: 'note',
+          entityId: event.noteId,
+          redirectUrl: `/notes/${event.noteId}`,
+        });
+        this.websocketService.emitToUser(event.uploaderId, 'notification:new', notification);
+        this.websocketService.emitToModerators('moderation:resolved', {
+          itemId: event.noteId,
+          type: 'note',
+          status: 'approved',
+        });
       }
 
-      await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
-      const notification = await this.notificationsService.create({
-        userId: event.uploaderId,
-        type: NotificationType.NOTE_APPROVED,
-        title: 'Your note has been approved',
-        message: `"${event.title}" has been approved and is now visible to everyone.`,
-        entityType: 'note',
-        entityId: event.noteId,
-        redirectUrl: `/notes/${event.noteId}`,
-      });
-      this.websocketService.emitToUser(event.uploaderId, 'notification:new', notification);
-      this.websocketService.emitToModerators('moderation:resolved', {
-        itemId: event.noteId,
-        type: 'note',
-        status: 'approved',
-      });
-    }
-
-    if (event.status === NoteStatus.REJECTED) {
-      const notification = await this.notificationsService.create({
-        userId: event.uploaderId,
-        type: NotificationType.NOTE_REJECTED,
-        title: 'Your note has been rejected',
-        message: `"${event.title}" was not approved. Please review the guidelines and resubmit.`,
-        entityType: 'note',
-        entityId: event.noteId,
-        redirectUrl: `/notes/${event.noteId}`,
-      });
-      this.websocketService.emitToUser(event.uploaderId, 'notification:new', notification);
-      this.websocketService.emitToModerators('moderation:resolved', {
-        itemId: event.noteId,
-        type: 'note',
-        status: 'rejected',
-      });
+      if (event.status === NoteStatus.REJECTED) {
+        const notification = await this.notificationsService.create({
+          userId: event.uploaderId,
+          type: NotificationType.NOTE_REJECTED,
+          title: 'Your note has been rejected',
+          message: `"${event.title}" was not approved. Please review the guidelines and resubmit.`,
+          entityType: 'note',
+          entityId: event.noteId,
+          redirectUrl: `/notes/${event.noteId}`,
+        });
+        this.websocketService.emitToUser(event.uploaderId, 'notification:new', notification);
+        this.websocketService.emitToModerators('moderation:resolved', {
+          itemId: event.noteId,
+          type: 'note',
+          status: 'rejected',
+        });
+      }
+    } catch (error) {
+      await this.redisService.del(lockKey);
+      throw error;
     }
   }
 }

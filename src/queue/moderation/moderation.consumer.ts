@@ -35,18 +35,8 @@ export class ModerationConsumer extends WorkerHost {
 
     try {
       if (type === 'note') {
-        const note = await this.notesService.findOne(itemId);
-        if (note.status === newStatus) {
-          await this.redisService.set(`moderation:job:${job.id}`, { status: 'completed' }, 120);
-          return;
-        }
         await this.notesService.updateStatus(itemId, newStatus as NoteStatus, adminRole);
       } else if (type === 'resource') {
-        const resource = await this.resourcesService.findOne(itemId);
-        if (resource.status === newStatus) {
-          await this.redisService.set(`moderation:job:${job.id}`, { status: 'completed' }, 120);
-          return;
-        }
         await this.resourcesService.updateStatus(itemId, newStatus as ResourceStatus, adminRole);
       }
 
