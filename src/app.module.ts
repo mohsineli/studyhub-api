@@ -21,6 +21,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { RepositoriesModule } from './common/repositories/repositories.module';
 import { NoteEventsListener } from './common/events/note-events.listener';
 import { StorageModule } from './storage/storage.module';
+import { WebsocketModule } from './websocket/websocket.module';
 
 @Module({
   imports: [
@@ -133,6 +134,7 @@ import { StorageModule } from './storage/storage.module';
     ResourcesModule,
     AdminModule,
     StorageModule,
+    WebsocketModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -8,6 +8,7 @@ import { NoteDownloadedEvent, NoteStatusChangedEvent } from './index';
 import { CACHE_KEYS } from '../constants/cache-keys';
 import { OTHER } from '../constants/defaults';
 import { UserRepository } from '../repositories/user.repository';
+import { WebsocketService } from '../../websocket/websocket.service';
 
 @Injectable()
 export class NoteEventsListener {
@@ -15,6 +16,7 @@ export class NoteEventsListener {
     private readonly userRepository: UserRepository,
     private readonly redisService: RedisService,
     private readonly notificationsService: NotificationsService,
+    private readonly websocketService: WebsocketService,
   ) {}
 
   @OnEvent('note.downloaded')
@@ -22,6 +24,16 @@ export class NoteEventsListener {
     if (event.downloaderId && event.ownerId && event.downloaderId !== event.ownerId) {
       await this.userRepository.increment({ id: event.ownerId }, 'points', OTHER.POINTS_PER_DOWNLOAD);
       await this.userRepository.increment({ id: event.downloaderId }, 'points', OTHER.POINTS_PER_DOWNLOAD);
+
+      const owner = await this.userRepository.findById(event.ownerId);
+      if (owner) {
+        this.websocketService.emitToUser(event.ownerId, 'points:updated', { points: owner.points });
+      }
+      const downloader = await this.userRepository.findById(event.downloaderId);
+      if (downloader) {
+        this.websocketService.emitToUser(event.downloaderId, 'points:updated', { points: downloader.points });
+      }
+
       await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
     }
   }
@@ -30,8 +42,14 @@ export class NoteEventsListener {
   async handleNoteStatusChanged(event: NoteStatusChangedEvent) {
     if (event.status === NoteStatus.APPROVED) {
       await this.userRepository.increment({ id: event.uploaderId }, 'points', OTHER.POINTS_PER_NOTE_APPROVAL);
+
+      const user = await this.userRepository.findById(event.uploaderId);
+      if (user) {
+        this.websocketService.emitToUser(event.uploaderId, 'points:updated', { points: user.points });
+      }
+
       await this.redisService.delByPattern(CACHE_KEYS.LEADERBOARD_PATTERN);
-      await this.notificationsService.create({
+      const notification = await this.notificationsService.create({
         userId: event.uploaderId,
         type: NotificationType.NOTE_APPROVED,
         title: 'Your note has been approved',
@@ -40,10 +58,16 @@ export class NoteEventsListener {
         entityId: event.noteId,
         redirectUrl: `/notes/${event.noteId}`,
       });
+      this.websocketService.emitToUser(event.uploaderId, 'notification:new', notification);
+      this.websocketService.emitToModerators('moderation:resolved', {
+        itemId: event.noteId,
+        type: 'note',
+        status: 'approved',
+      });
     }
 
     if (event.status === NoteStatus.REJECTED) {
-      await this.notificationsService.create({
+      const notification = await this.notificationsService.create({
         userId: event.uploaderId,
         type: NotificationType.NOTE_REJECTED,
         title: 'Your note has been rejected',
@@ -51,6 +75,12 @@ export class NoteEventsListener {
         entityType: 'note',
         entityId: event.noteId,
         redirectUrl: `/notes/${event.noteId}`,
+      });
+      this.websocketService.emitToUser(event.uploaderId, 'notification:new', notification);
+      this.websocketService.emitToModerators('moderation:resolved', {
+        itemId: event.noteId,
+        type: 'note',
+        status: 'rejected',
       });
     }
   }

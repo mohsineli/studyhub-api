@@ -6,6 +6,7 @@ import { RedisService } from '../../redis/redis.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { NoteStatus } from '../../notes/entities/note.entity';
 import { ResourceStatus } from '../../resources/entities/resource.entity';
+import { WebsocketService } from '../../websocket/websocket.service';
 
 interface ModerationJobData {
   type: 'note' | 'resource';
@@ -24,6 +25,7 @@ export class ModerationConsumer extends WorkerHost {
     private readonly resourcesService: ResourcesService,
     private readonly redisService: RedisService,
     private readonly notificationsService: NotificationsService,
+    private readonly websocketService: WebsocketService,
   ) {
     super();
   }
@@ -88,6 +90,10 @@ export class ModerationConsumer extends WorkerHost {
       message: `Something went wrong while updating the status of your ${type} "${itemTitle}". Please contact support.`,
       entityType: type,
       entityId: itemId,
+    });
+
+    this.websocketService.emitToModerators('moderation:failed', {
+      itemId, type, newStatus, error: error.message,
     });
   }
 }
