@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Resource, ResourceStatus } from './entities/resource.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
@@ -8,12 +9,14 @@ import { CACHE_KEYS } from '../common/constants/cache-keys';
 import { CACHE_TTL, TOP_N, PAGINATION } from '../common/constants/defaults';
 import { buildPagination } from '../common/pagination/pagination.helper';
 import { ResourceRepository } from '../common/repositories/resource.repository';
+import { ResourceStatusChangedEvent } from '../common/events/index';
 
 @Injectable()
 export class ResourcesService {
   constructor(
     private readonly resourceRepository: ResourceRepository,
     private readonly settingsService: SettingsService,
+    private readonly eventEmitter: EventEmitter2,
     private readonly redisService: RedisService,
   ) {}
 
@@ -140,6 +143,9 @@ export class ResourcesService {
     const resource = await this.findOne(id);
     resource.status = status;
     const saved = await this.resourceRepository.save(resource);
+
+    await this.eventEmitter.emitAsync('resource.status-changed', new ResourceStatusChangedEvent(id, resource.title, resource.uploader_id, status));
+
     await this.redisService.delByPattern(CACHE_KEYS.RESOURCES_PATTERN);
     return saved;
   }

@@ -121,7 +121,7 @@ export class NotesService {
     note.downloads += 1;
     await this.noteRepository.save(note);
 
-    this.eventEmitter.emit('note.downloaded', new NoteDownloadedEvent(id, downloaderId, note.uploader_id));
+    await this.eventEmitter.emitAsync('note.downloaded', new NoteDownloadedEvent(id, downloaderId, note.uploader_id));
 
     await this.redisService.delByPattern(CACHE_KEYS.NOTES_PATTERN);
 
@@ -158,7 +158,7 @@ export class NotesService {
     note.status = status;
     await this.noteRepository.save(note);
 
-    this.eventEmitter.emit('note.status-changed', new NoteStatusChangedEvent(id, note.title, note.uploader_id, status));
+    await this.eventEmitter.emitAsync('note.status-changed', new NoteStatusChangedEvent(id, note.title, note.uploader_id, status));
 
     await this.redisService.delByPattern(CACHE_KEYS.NOTES_PATTERN);
 

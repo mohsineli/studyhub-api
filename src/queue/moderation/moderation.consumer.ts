@@ -31,17 +31,28 @@ export class ModerationConsumer extends WorkerHost {
   async process(job: Job<ModerationJobData>): Promise<void> {
     const { type, itemId, newStatus, adminRole } = job.data;
 
-    if (type === 'note') {
-      const note = await this.notesService.findOne(itemId);
-      if (note.status === newStatus) return;
-      await this.notesService.updateStatus(itemId, newStatus as NoteStatus, adminRole);
-    } else if (type === 'resource') {
-      const resource = await this.resourcesService.findOne(itemId);
-      if (resource.status === newStatus) return;
-      await this.resourcesService.updateStatus(itemId, newStatus as ResourceStatus, adminRole);
-    }
+    try {
+      if (type === 'note') {
+        const note = await this.notesService.findOne(itemId);
+        if (note.status === newStatus) {
+          await this.redisService.set(`moderation:job:${job.id}`, { status: 'completed' }, 120);
+          return;
+        }
+        await this.notesService.updateStatus(itemId, newStatus as NoteStatus, adminRole);
+      } else if (type === 'resource') {
+        const resource = await this.resourcesService.findOne(itemId);
+        if (resource.status === newStatus) {
+          await this.redisService.set(`moderation:job:${job.id}`, { status: 'completed' }, 120);
+          return;
+        }
+        await this.resourcesService.updateStatus(itemId, newStatus as ResourceStatus, adminRole);
+      }
 
-    await this.redisService.set(`moderation:job:${job.id}`, { status: 'completed' }, 120);
+      await this.redisService.set(`moderation:job:${job.id}`, { status: 'completed' }, 120);
+    } catch (error) {
+      await this.redisService.set(`moderation:job:${job.id}`, { status: 'failed', error: error.message }, 300);
+      throw error;
+    }
   }
 
   @OnWorkerEvent('failed')
