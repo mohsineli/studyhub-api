@@ -144,7 +144,7 @@ export class ResourcesService {
     resource.status = status;
     const saved = await this.resourceRepository.save(resource);
 
-    await this.eventEmitter.emitAsync('resource.status-changed', new ResourceStatusChangedEvent(id, resource.title, resource.uploader_id, status));
+    await this.eventEmitter.emitAsync('resource.status-changed', new ResourceStatusChangedEvent(id, resource.title, resource.uploader_id, status, resource.file_path));
 
     await this.redisService.delByPattern(CACHE_KEYS.RESOURCES_PATTERN);
     return saved;

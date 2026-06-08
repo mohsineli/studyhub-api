@@ -6,5 +6,6 @@ export class ResourceStatusChangedEvent {
     public readonly title: string,
     public readonly uploaderId: number,
     public readonly status: ResourceStatus,
+    public readonly filePath?: string,
   ) {}
 }

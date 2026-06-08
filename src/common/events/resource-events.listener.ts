@@ -9,6 +9,7 @@ import { CACHE_KEYS } from '../constants/cache-keys';
 import { OTHER } from '../constants/defaults';
 import { UserRepository } from '../repositories/user.repository';
 import { WebsocketService } from '../../websocket/websocket.service';
+import { StorageService } from '../../storage/storage.service';
 
 @Injectable()
 export class ResourceEventsListener {
@@ -17,6 +18,7 @@ export class ResourceEventsListener {
     private readonly redisService: RedisService,
     private readonly notificationsService: NotificationsService,
     private readonly websocketService: WebsocketService,
+    private readonly storageService: StorageService,
   ) {}
 
   @OnEvent('resource.status-changed')
@@ -53,6 +55,12 @@ export class ResourceEventsListener {
       }
 
       if (event.status === ResourceStatus.REJECTED) {
+        if (event.filePath) {
+          try {
+            await this.storageService.deleteObject(event.filePath);
+          } catch { /* file may already be deleted */ }
+        }
+
         const notification = await this.notificationsService.create({
           userId: event.uploaderId,
           type: NotificationType.RESOURCE_REJECTED,

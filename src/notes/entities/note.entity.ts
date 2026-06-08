@@ -38,8 +38,8 @@ export class Note {
   @Column({ length: 100, nullable: false })
   dept: string;
 
-  @Column({ type: 'text' })
-  file_path: string;
+  @Column({ type: 'text', nullable: true })
+  file_path: string | null;
 
   @Column({ length: 20, nullable: false })
   file_type: string;
@@ -63,6 +63,10 @@ export class Note {
 
   @CreateDateColumn()
   created_at: Date;
+
+  @Index('idx_notes_rejected_at')
+  @Column({ type: 'timestamp', nullable: true })
+  rejected_at: Date | null;
 
   @OneToMany(() => Bookmark, (bookmark) => bookmark.note)
   bookmarks: Bookmark[];

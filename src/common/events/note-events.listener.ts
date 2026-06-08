@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { RedisService } from '../../redis/redis.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { NotificationType } from '../../notifications/entities/notification.entity';
-import { NoteStatus } from '../../notes/entities/note.entity';
+import { Note, NoteStatus } from '../../notes/entities/note.entity';
 import { NoteDownloadedEvent, NoteStatusChangedEvent } from './index';
 import { CACHE_KEYS } from '../constants/cache-keys';
 import { OTHER } from '../constants/defaults';
@@ -17,6 +19,7 @@ export class NoteEventsListener {
     private readonly redisService: RedisService,
     private readonly notificationsService: NotificationsService,
     private readonly websocketService: WebsocketService,
+    @InjectRepository(Note) private readonly noteRepository: Repository<Note>,
   ) {}
 
   @OnEvent('note.downloaded')
@@ -72,6 +75,8 @@ export class NoteEventsListener {
       }
 
       if (event.status === NoteStatus.REJECTED) {
+        await this.noteRepository.update(event.noteId, { rejected_at: new Date() });
+
         const notification = await this.notificationsService.create({
           userId: event.uploaderId,
           type: NotificationType.NOTE_REJECTED,
