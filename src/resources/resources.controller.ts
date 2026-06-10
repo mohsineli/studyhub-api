@@ -44,8 +44,9 @@ export class ResourcesController {
   findCourses(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('search') search?: string,
   ) {
-    return this.resourcesService.findCourses(page, limit);
+    return this.resourcesService.findCourses(page, limit, search);
   }
 
   // Admin and moderator can see trending resources

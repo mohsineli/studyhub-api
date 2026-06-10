@@ -29,4 +29,8 @@ export class BookmarkRepository implements IBookmarkRepository {
   async remove(bookmark: Bookmark): Promise<Bookmark> {
     return this.repo.remove(bookmark);
   }
+
+  createQueryBuilder(alias: string) {
+    return this.repo.createQueryBuilder(alias);
+  }
 }

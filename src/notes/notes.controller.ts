@@ -32,8 +32,9 @@ export class NotesController {
     @Query('sort') sort?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('search') search?: string,
   ) {
-    return this.notesService.findAll(sort, page, limit);
+    return this.notesService.findAll(sort, page, limit, search);
   }
 
   @Get('my-notes')

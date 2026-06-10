@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ILike } from 'typeorm';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { Note, NoteStatus } from './entities/note.entity';
@@ -30,25 +31,43 @@ export class NotesService {
     return saved;
   }
 
-  async findAll(sort?: string, page?: number, limit?: number) {
+  async findAll(sort?: string, page?: number, limit?: number, search?: string) {
+    const order: any = {};
+    
+    switch (sort) {
+      case 'top-rated':
+        order.avg_rating = 'DESC';
+        break;
+      case 'most-downloaded':
+        order.downloads = 'DESC';
+        break;
+      default:
+        order.created_at = 'DESC';
+    }
+
+    const { take, skip } = buildPagination(page, limit);
+
+    // When search is provided (2+ chars), query across title, courseTitle, code, dept
+    if (search && search.length >= 2) {
+      const [data, total] = await this.noteRepository.findAndCount({
+        where: [
+          { title: ILike(`%${search}%`), status: NoteStatus.APPROVED },
+          { courseTitle: ILike(`%${search}%`), status: NoteStatus.APPROVED },
+          { code: ILike(`%${search}%`), status: NoteStatus.APPROVED },
+          { dept: ILike(`%${search}%`), status: NoteStatus.APPROVED },
+        ],
+        relations: ['uploader'],
+        order,
+        take,
+        skip,
+      });
+
+      return { data, total, page: page || 1, limit: take };
+    }
+
     const cacheKey = CACHE_KEYS.NOTES_ALL(sort, page, limit);
 
     return this.redisService.wrap(cacheKey, CACHE_TTL.NOTES_LIST, async () => {
-      const order: any = {};
-      
-      switch (sort) {
-        case 'top-rated':
-          order.avg_rating = 'DESC';
-          break;
-        case 'most-downloaded':
-          order.downloads = 'DESC';
-          break;
-        default:
-          order.created_at = 'DESC';
-      }
-
-      const { take, skip } = buildPagination(page, limit);
-
       const [data, total] = await this.noteRepository.findAndCount({
         where: { status: NoteStatus.APPROVED },
         relations: ['uploader'],

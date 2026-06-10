@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ILike } from 'typeorm';
 import { Resource, ResourceStatus } from './entities/resource.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
@@ -67,34 +68,51 @@ export class ResourcesService {
     return { data, total, page: page || 1, limit: take };
   }
 
-  async findCourses(page: number = PAGINATION.DEFAULT_PAGE, limit: number = PAGINATION.DEFAULT_LIMIT) {
-    const cacheKey = CACHE_KEYS.RESOURCES_COURSES(page, limit);
+  async findCourses(page: number = PAGINATION.DEFAULT_PAGE, limit: number = PAGINATION.DEFAULT_LIMIT, search?: string) {
+    const { take, skip } = buildPagination(page, limit);
 
-    return this.redisService.wrap(cacheKey, CACHE_TTL.RESOURCES_LIST, async () => {
-      const { take, skip } = buildPagination(page, limit);
-
-      const data = await this.resourceRepository
+    const baseQuery = (countOnly = false) => {
+      const qb = this.resourceRepository
         .createQueryBuilder('resource')
+        .where('resource.status = :status', { status: ResourceStatus.APPROVED });
+
+      if (search && search.length >= 2) {
+        qb.andWhere(
+          '(resource.subject ILIKE :search OR resource.course_code ILIKE :search)',
+          { search: `%${search}%` }
+        );
+      }
+
+      if (countOnly) {
+        return qb
+          .select('resource.subject')
+          .groupBy('resource.subject')
+          .addGroupBy('resource.course_code');
+      }
+
+      return qb
         .select('resource.subject', 'subject')
         .addSelect('resource.course_code', 'course_code')
         .addSelect('COUNT(resource.id)', 'resourceCount')
-        .where('resource.status = :status', { status: ResourceStatus.APPROVED })
         .groupBy('resource.subject')
         .addGroupBy('resource.course_code')
         .orderBy('"resourceCount"', 'DESC')
         .addOrderBy('resource.subject', 'ASC')
         .offset(skip)
-        .limit(take)
-        .getRawMany();
+        .limit(take);
+    };
 
-      const totalResult = await this.resourceRepository
-        .createQueryBuilder('resource')
-        .select('resource.subject')
-        .where('resource.status = :status', { status: ResourceStatus.APPROVED })
-        .groupBy('resource.subject')
-        .addGroupBy('resource.course_code')
-        .getRawMany();
+    // Skip cache when search is active
+    if (search && search.length >= 2) {
+      const data = await baseQuery(false).getRawMany();
+      const totalResult = await baseQuery(true).getRawMany();
+      return { data, total: totalResult.length, page, limit: take };
+    }
 
+    const cacheKey = CACHE_KEYS.RESOURCES_COURSES(page, limit);
+    return this.redisService.wrap(cacheKey, CACHE_TTL.RESOURCES_LIST, async () => {
+      const data = await baseQuery(false).getRawMany();
+      const totalResult = await baseQuery(true).getRawMany();
       return { data, total: totalResult.length, page, limit: take };
     });
   }

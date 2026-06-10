@@ -32,7 +32,21 @@ export class BookmarksService {
     }
   }
 
-  async findAllByUser(userId: number) {
+  async findAllByUser(userId: number, search?: string) {
+    if (search && search.length >= 2) {
+      return this.bookmarkRepository
+        .createQueryBuilder('bookmark')
+        .leftJoinAndSelect('bookmark.note', 'note')
+        .leftJoinAndSelect('bookmark.resource', 'resource')
+        .where('bookmark.user_id = :userId', { userId })
+        .andWhere(
+          `(bookmark.subject_name ILIKE :search OR note.title ILIKE :search OR note.courseTitle ILIKE :search OR note.code ILIKE :search OR resource.title ILIKE :search OR resource.subject ILIKE :search OR resource.course_code ILIKE :search)`,
+          { search: `%${search}%` }
+        )
+        .orderBy('bookmark.created_at', 'DESC')
+        .getMany();
+    }
+
     return await this.bookmarkRepository.find({
       where: { user_id: userId },
       relations: ['note', 'resource'],

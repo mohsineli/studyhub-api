@@ -6,4 +6,5 @@ export interface IBookmarkRepository {
   findOne(options: { where: any }): Promise<Bookmark | null>;
   find(options: { where: any; relations?: string[]; order?: any }): Promise<Bookmark[]>;
   remove(bookmark: Bookmark): Promise<Bookmark>;
+  createQueryBuilder(alias: string): any;
 }

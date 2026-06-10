@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, UseGuards, Req, ParseIntPipe, Query } from '@nestjs/common';
 import { BookmarksService } from './bookmarks.service';
 import { CreateBookmarkDto } from './dto/create-bookmark.dto';
 import { JwtAuthGuard } from '../auth';
@@ -20,8 +20,11 @@ export class BookmarksController {
   }
 
   @Get()
-  findAll(@Req() req: AuthenticatedRequest) {
-    return this.bookmarksService.findAllByUser(req.user.id);
+  findAll(
+    @Req() req: AuthenticatedRequest,
+    @Query('search') search?: string,
+  ) {
+    return this.bookmarksService.findAllByUser(req.user.id, search);
   }
 
   @Delete(':id')
