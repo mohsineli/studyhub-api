@@ -250,6 +250,24 @@ export class AnalyticsService {
         .select("SUM(note.downloads)", "total")
         .getRawOne();
 
+      const popularResources = await this.resourceRepository
+        .createQueryBuilder('resource')
+        .leftJoinAndSelect('resource.uploader', 'uploader')
+        .select([
+          'resource.id',
+          'resource.title',
+          'resource.subject',
+          'resource.course_code',
+          'resource.downloads',
+          'resource.avg_rating',
+          'resource.created_at',
+        ])
+        .addSelect(['uploader.id', 'uploader.name'])
+        .where('resource.status = :status', { status: ResourceStatus.APPROVED })
+        .orderBy('resource.downloads', 'DESC')
+        .take(TOP_N.POPULAR_NOTES)
+        .getMany();
+
       const resourcesTotal = await this.resourceRepository.count();
       const resourcesApproved = await this.resourceRepository.count({ where: { status: ResourceStatus.APPROVED } });
       const resourcesPending = await this.resourceRepository.count({ where: { status: ResourceStatus.PENDING } });
@@ -271,6 +289,16 @@ export class AnalyticsService {
         notesCreated,
         resourcesCreated,
         reviewsCreated,
+        popularResources: popularResources.map(r => ({
+          id: r.id,
+          title: r.title,
+          subject: r.subject,
+          course_code: r.course_code,
+          downloads: r.downloads,
+          avgRating: parseFloat(r.avg_rating?.toString() || '0'),
+          createdAt: r.created_at,
+          uploader: r.uploader ? { id: r.uploader.id, name: r.uploader.name } : null,
+        })),
         popularNotes: popularNotes.map(n => ({
           id: n.id,
           title: n.title,
