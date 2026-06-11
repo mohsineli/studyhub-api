@@ -135,6 +135,14 @@ export class NotesService {
     return note;
   }
 
+  async incrementView(id: number) {
+    const note = await this.findOne(id);
+    note.views += 1;
+    await this.noteRepository.save(note);
+    await this.redisService.delByPattern(CACHE_KEYS.NOTES_PATTERN);
+    return note;
+  }
+
   async incrementDownload(id: number, downloaderId?: number) {
     const note = await this.findOne(id);
     note.downloads += 1;

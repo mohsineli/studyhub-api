@@ -120,6 +120,12 @@ export class NotesController {
     return this.notesService.update(id, updateNoteDto, req.user);
   }
 
+  @Post(':id/view')
+  @Public()
+  incrementView(@Param('id', ParseIntPipe) id: number) {
+    return this.notesService.incrementView(id);
+  }
+
   @Post(':id/download')
   incrementDownload(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.notesService.incrementDownload(id, req.user.id);
