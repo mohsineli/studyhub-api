@@ -260,7 +260,7 @@ export class AnalyticsService {
         .createQueryBuilder('review')
         .select("DATE(review.created_at)", "date")
         .addSelect("COUNT(review.id)", "count")
-        .where({ created_at: Between(range.start, range.end) as any, parent_id: null })
+        .where({ created_at: Between(range.start, range.end) as any })
         .groupBy("DATE(review.created_at)")
         .orderBy("DATE(review.created_at)", "ASC")
         .getRawMany();
