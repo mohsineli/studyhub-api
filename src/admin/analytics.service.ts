@@ -229,6 +229,8 @@ export class AnalyticsService {
         .select([
           'note.id',
           'note.title',
+          'note.courseTitle',
+          'note.code',
           'note.downloads',
           'note.avg_rating',
           'note.created_at',
@@ -272,6 +274,8 @@ export class AnalyticsService {
         popularNotes: popularNotes.map(n => ({
           id: n.id,
           title: n.title,
+          courseTitle: n.courseTitle,
+          code: n.code,
           downloads: n.downloads,
           avgRating: parseFloat(n.avg_rating?.toString() || '0'),
           dept: n.dept,
