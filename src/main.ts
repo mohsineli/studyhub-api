@@ -27,7 +27,7 @@ async function bootstrap() {
     frameguard: false,
     contentSecurityPolicy: {
       directives: {
-        frameAncestors: ["'self'", "http://localhost:3000", "http://127.0.0.1:3000", "https://studyhubbd.vercel.app"],
+        frameAncestors: ["'self'", "http://localhost:3000", "http://127.0.0.1:3000", "https://studyhubbd.vercel.app", "http://localhost:8081"],
       },
     },
   }));
@@ -39,7 +39,9 @@ async function bootstrap() {
   const allowedOrigins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'https://studyhubbd.vercel.app'
+    'https://studyhubbd.vercel.app',
+    'http://localhost:8081',
+
   ];
 
   // Enable CORS with credentials so the frontend can send/receive cookies
