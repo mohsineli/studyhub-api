@@ -11,6 +11,10 @@ import { CACHE_TTL, TOP_N, PAGINATION } from '../common/constants/defaults';
 import { buildPagination } from '../common/pagination/pagination.helper';
 import { NoteRepository } from '../common/repositories/note.repository';
 import { NoteReactionRepository } from '../common/repositories/note-reaction.repository';
+import { UserRepository } from '../common/repositories/user.repository';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/entities/notification.entity';
+import { WebsocketService } from '../websocket/websocket.service';
 
 @Injectable()
 export class NotesService {
@@ -19,6 +23,9 @@ export class NotesService {
     private readonly noteReactionRepository: NoteReactionRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly redisService: RedisService,
+    private readonly userRepository: UserRepository,
+    private readonly notificationsService: NotificationsService,
+    private readonly websocketService: WebsocketService,
   ) {}
 
   async create(createNoteDto: CreateNoteDto, uploaderId: number) {
@@ -193,11 +200,13 @@ export class NotesService {
   }
 
   async toggleReaction(userId: number, noteId: number, reaction: string) {
-    await this.findOne(noteId);
+    const note = await this.findOne(noteId);
 
     const existing = await this.noteReactionRepository.findOne({
       where: { note_id: noteId, user_id: userId },
     });
+
+    let isNewReaction = false;
 
     if (existing) {
       if (existing.reaction === reaction) {
@@ -212,6 +221,27 @@ export class NotesService {
         user_id: userId,
         reaction,
       });
+      isNewReaction = true;
+    }
+
+    // Send notification only for new reactions (not toggles/switches), and not to self
+    if (isNewReaction && note.uploader_id !== userId) {
+      const actor = await this.userRepository.findOne({ where: { id: userId } });
+      const actorName = actor?.name?.split(' ')[0] || 'Someone';
+
+      const saved = await this.notificationsService.create({
+        userId: note.uploader_id,
+        actorId: userId,
+        type: NotificationType.NOTE_LIKE,
+        title: `${actorName} reacted to your note`,
+        message: `${actorName} reacted to "${note.title}".`,
+        entityType: 'note',
+        entityId: noteId,
+        redirectUrl: `/notes/${noteId}`,
+        metadata: { reaction, actorName, actorAvatar: actor?.profile_pic || null },
+      });
+
+      this.websocketService.emitToUser(note.uploader_id, 'notification:new', saved);
     }
 
     return this.getReactionSummary(noteId, userId);

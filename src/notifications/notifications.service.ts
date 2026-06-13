@@ -1,16 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { LessThan } from 'typeorm';
+import { LessThan, In } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
 import { PAGINATION, OTHER } from '../common/constants/defaults';
 import { buildPagination } from '../common/pagination/pagination.helper';
 import { NotificationRepository } from '../common/repositories/notification.repository';
+import { UserRepository } from '../common/repositories/user.repository';
 import { PushService } from './push.service';
 
 @Injectable()
 export class NotificationsService {
   constructor(
     private readonly notificationRepository: NotificationRepository,
+    private readonly userRepository: UserRepository,
     private readonly pushService: PushService,
   ) {}
 
@@ -58,7 +60,7 @@ export class NotificationsService {
       limit?: number;
       unreadOnly?: boolean;
     } = {},
-  ): Promise<{ data: Notification[]; total: number; unreadCount: number }> {
+  ): Promise<{ data: any[]; total: number; unreadCount: number }> {
     const page = options.page || PAGINATION.DEFAULT_PAGE;
     const limit = options.limit || PAGINATION.NOTIFICATIONS_LIMIT;
     const { take, skip } = buildPagination(page, limit);
@@ -77,7 +79,27 @@ export class NotificationsService {
       where: { user_id: userId, is_read: false },
     });
 
-    return { data, total, unreadCount };
+    // Enrich notifications with actor information
+    const actorIds = [...new Set(data.map(n => n.actor_id).filter(id => id !== null))] as number[];
+    let actorMap = new Map<number, { name: string; profile_pic: string | null }>();
+
+    if (actorIds.length > 0) {
+      const actors = await this.userRepository.find({
+        where: { id: In(actorIds) },
+      });
+      actorMap = new Map(actors.map(u => [u.id, { name: u.name, profile_pic: u.profile_pic || null }]));
+    }
+
+    const enrichedData = data.map(notification => {
+      const actorInfo = notification.actor_id ? actorMap.get(notification.actor_id) : null;
+      return {
+        ...notification,
+        actorName: actorInfo ? actorInfo.name : null,
+        actorAvatar: actorInfo ? actorInfo.profile_pic : null,
+      };
+    });
+
+    return { data: enrichedData, total, unreadCount };
   }
 
   async getUnreadCount(userId: number): Promise<number> {

@@ -31,17 +31,17 @@ export class NotificationsController {
     return { count };
   }
 
+  @Patch('read-all')
+  async markAllAsRead(@Req() req: AuthenticatedRequest) {
+    await this.notificationsService.markAllAsRead(req.user.id);
+    return { success: true };
+  }
+
   @Patch(':id/read')
   async markAsRead(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
     const notification = await this.notificationsService.markAsRead(+id, req.user.id);
     if (!notification) return { success: false };
     return { success: true, notification };
-  }
-
-  @Patch('read-all')
-  async markAllAsRead(@Req() req: AuthenticatedRequest) {
-    await this.notificationsService.markAllAsRead(req.user.id);
-    return { success: true };
   }
 
   @Delete(':id')

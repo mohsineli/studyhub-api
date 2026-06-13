@@ -13,6 +13,7 @@ import { ReviewRepository } from '../common/repositories/review.repository';
 import { ReviewLikeRepository } from '../common/repositories/review-like.repository';
 import { NoteRepository } from '../common/repositories/note.repository';
 import { UserRepository } from '../common/repositories/user.repository';
+import { WebsocketService } from '../websocket/websocket.service';
 
 @Injectable()
 export class ReviewsService {
@@ -23,6 +24,7 @@ export class ReviewsService {
     private readonly userRepository: UserRepository,
     private readonly redisService: RedisService,
     private readonly notificationsService: NotificationsService,
+    private readonly websocketService: WebsocketService,
   ) {}
 
   async submitRating(userId: number, noteId: number, rating: number) {
@@ -82,6 +84,7 @@ export class ReviewsService {
       rating: 0,
       comment: dto.comment,
       parent_id: dto.parent_id || null,
+      mentioned_user_id: dto.mentioned_user_id || null,
     });
 
     await this.reviewRepository.save(review);
@@ -108,29 +111,37 @@ export class ReviewsService {
     const actor = await this.userRepository.findOne({ where: { id: commenterId } });
     const actorName = actor?.name?.split(' ')[0] || 'Someone';
 
+    let parentAuthorId: number | null = null;
+
     // 1. Reply to a comment — notify parent comment author
     if (dto.parent_id) {
       const parent = await this.reviewRepository.findOne({
         where: { id: dto.parent_id },
         relations: ['user'],
       });
-      if (parent && parent.user_id !== commenterId && parent.user) {
-        await this.notificationsService.create({
-          userId: parent.user_id,
-          actorId: commenterId,
-          type: NotificationType.COMMENT_REPLY,
-          title: `${actorName} replied to your comment`,
-          message: `${actorName} replied to your comment on "${note.title}".`,
-          entityType: 'review',
-          entityId: review.id,
-          redirectUrl: `${noteUrl}?comment=${review.id}`,
-        });
+      if (parent && parent.user) {
+        parentAuthorId = parent.user_id;
+        
+        if (parentAuthorId !== commenterId) {
+          const saved = await this.notificationsService.create({
+            userId: parentAuthorId,
+            actorId: commenterId,
+            type: NotificationType.COMMENT_REPLY,
+            title: `${actorName} replied to your comment`,
+            message: `${actorName} replied to your comment on "${note.title}".`,
+            entityType: 'review',
+            entityId: review.id,
+            redirectUrl: `${noteUrl}?comment=${review.id}`,
+            metadata: { parentCommentId: dto.parent_id, actorName, actorAvatar: actor?.profile_pic || null },
+          });
+          this.websocketService.emitToUser(parentAuthorId, 'notification:new', saved);
+        }
       }
     }
 
     // 2. Comment on a note — notify note owner
     if (!dto.parent_id && note.uploader_id !== commenterId) {
-      await this.notificationsService.create({
+      const saved = await this.notificationsService.create({
         userId: note.uploader_id,
         actorId: commenterId,
         type: NotificationType.NOTE_COMMENT,
@@ -138,33 +149,28 @@ export class ReviewsService {
         message: `${actorName} left a new comment on "${note.title}".`,
         entityType: 'note',
         entityId: noteId,
-        redirectUrl: noteUrl,
+        redirectUrl: `${noteUrl}?comment=${review.id}`,
+        metadata: { actorName, actorAvatar: actor?.profile_pic || null },
       });
+      this.websocketService.emitToUser(note.uploader_id, 'notification:new', saved);
     }
 
-    // 3. Parse @mentions in the comment
-    if (dto.comment) {
-      const mentionMatches = dto.comment.match(/@(\w+)/g);
-      if (mentionMatches) {
-        const mentionedNames = [...new Set(mentionMatches.map(m => m.slice(1).toLowerCase()))];
-        for (const name of mentionedNames) {
-          const mentionedUsers = await this.userRepository.find({
-            where: { name: Like(`%${name}%`) },
-          });
-          for (const mentioned of mentionedUsers) {
-            if (mentioned.id === commenterId) continue;
-            await this.notificationsService.create({
-              userId: mentioned.id,
-              actorId: commenterId,
-              type: NotificationType.MENTION,
-              title: `${actorName} mentioned you`,
-              message: `${actorName} mentioned you in a comment on "${note.title}".`,
-              entityType: 'review',
-              entityId: review.id,
-              redirectUrl: `${noteUrl}?comment=${review.id}`,
-            });
-          }
-        }
+    // 3. Mention in a reply — notify explicitly mentioned user
+    if (dto.mentioned_user_id) {
+      const mentionedUserId = dto.mentioned_user_id;
+      if (mentionedUserId !== commenterId && mentionedUserId !== parentAuthorId) {
+        const saved = await this.notificationsService.create({
+          userId: mentionedUserId,
+          actorId: commenterId,
+          type: NotificationType.MENTION,
+          title: `${actorName} mentioned you`,
+          message: `${actorName} mentioned you in a comment on "${note.title}".`,
+          entityType: 'review',
+          entityId: review.id,
+          redirectUrl: `${noteUrl}?comment=${review.id}`,
+          metadata: { parentCommentId: dto.parent_id, actorName, actorAvatar: actor?.profile_pic || null },
+        });
+        this.websocketService.emitToUser(mentionedUserId, 'notification:new', saved);
       }
     }
   }
@@ -190,7 +196,7 @@ export class ReviewsService {
   async findByNote(noteId: number, currentUserId?: number): Promise<any[]> {
     const reviews = await this.reviewRepository.find({
       where: { note_id: noteId, parent_id: IsNull() },
-      relations: ['user', 'children', 'children.user'],
+      relations: ['user', 'mentioned_user', 'children', 'children.user', 'children.mentioned_user'],
       order: { created_at: 'DESC' },
     });
 
@@ -247,8 +253,11 @@ export class ReviewsService {
       where: { review_id: reviewId, user_id: userId },
     });
 
+    let finalUserVote: string | null = type;
+
     if (existing) {
       if (existing.type === type) {
+        finalUserVote = null;
         // Remove vote (toggle off)
         await this.reviewLikeRepository.remove(existing);
         if (type === 'like') {
@@ -257,6 +266,7 @@ export class ReviewsService {
           review.dislikes_count = Math.max(0, review.dislikes_count - 1);
         }
       } else {
+        finalUserVote = type;
         // Switch vote
         existing.type = type;
         await this.reviewLikeRepository.save(existing);
@@ -269,6 +279,7 @@ export class ReviewsService {
         }
       }
     } else {
+      finalUserVote = type;
       // New vote
       await this.reviewLikeRepository.save({
         review_id: reviewId,
@@ -283,7 +294,7 @@ export class ReviewsService {
     }
 
     await this.reviewRepository.save(review);
-    return { likes_count: review.likes_count, dislikes_count: review.dislikes_count, userVote: existing && existing.type !== type ? type : (existing ? null : type) };
+    return { likes_count: review.likes_count, dislikes_count: review.dislikes_count, userVote: finalUserVote };
   }
 
   async findOneByUserAndNote(userId: number, noteId: number): Promise<Review | null> {

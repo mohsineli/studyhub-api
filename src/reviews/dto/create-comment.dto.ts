@@ -9,4 +9,8 @@ export class CreateCommentDto {
   @IsInt()
   @IsOptional()
   parent_id?: number;
+
+  @IsInt()
+  @IsOptional()
+  mentioned_user_id?: number;
 }

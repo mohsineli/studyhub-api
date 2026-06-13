@@ -38,6 +38,14 @@ export class Review {
   @JoinColumn({ name: 'parent_id' })
   parent: Review;
 
+  @Index('idx_reviews_mentioned_user')
+  @Column({ nullable: true })
+  mentioned_user_id: number | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'mentioned_user_id' })
+  mentioned_user: User | null;
+
   @OneToMany(() => Review, review => review.parent)
   children: Review[];
 
