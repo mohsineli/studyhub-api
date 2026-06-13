@@ -5,11 +5,13 @@ import { Notification, NotificationType } from './entities/notification.entity';
 import { PAGINATION, OTHER } from '../common/constants/defaults';
 import { buildPagination } from '../common/pagination/pagination.helper';
 import { NotificationRepository } from '../common/repositories/notification.repository';
+import { PushService } from './push.service';
 
 @Injectable()
 export class NotificationsService {
   constructor(
     private readonly notificationRepository: NotificationRepository,
+    private readonly pushService: PushService,
   ) {}
 
   async create(data: {
@@ -33,7 +35,20 @@ export class NotificationsService {
     notification.entity_id = data.entityId ?? null;
     notification.redirect_url = data.redirectUrl ?? null;
     notification.metadata = data.metadata ?? null;
-    return this.notificationRepository.save(notification);
+    const saved = await this.notificationRepository.save(notification);
+
+    this.pushService.sendToUser(data.userId, {
+      title: data.title,
+      body: data.message ?? undefined,
+      data: {
+        type: data.type,
+        entityType: data.entityType,
+        entityId: data.entityId,
+        redirectUrl: data.redirectUrl,
+      },
+    });
+
+    return saved;
   }
 
   async findByUser(
