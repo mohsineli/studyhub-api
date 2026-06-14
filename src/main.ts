@@ -41,6 +41,8 @@ async function bootstrap() {
     'http://127.0.0.1:3000',
     'https://studyhubbd.vercel.app',
     'http://localhost:8081',
+    'http://192.168.1.140:8081',
+    'http://192.168.1.143:8081',
 
   ];
 
@@ -66,7 +68,7 @@ async function bootstrap() {
     transform: true,
   }));
 
-  await app.listen(process.env.PORT ?? 3001);
+  await app.listen(process.env.PORT ?? 3001, '0.0.0.0');
   console.log(`Application running on port ${process.env.PORT ?? 3001}`);
 }
 bootstrap();
