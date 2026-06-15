@@ -11,6 +11,7 @@ export enum NotificationType {
   NOTE_LIKE = 'note_like',
   COMMENT_LIKE = 'comment_like',
   NOTE_DOWNLOAD = 'note_download',
+  FOLLOW = 'follow',
   RESOURCE_APPROVED = 'resource_approved',
   RESOURCE_REJECTED = 'resource_rejected',
   SYSTEM = 'system',

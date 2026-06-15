@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { MailModule } from './mail/mail.module';
 import { NotesModule } from './notes/notes.module';
 import { BookmarksModule } from './bookmarks/bookmarks.module';
+import { FollowsModule } from './follows/follows.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ResourcesModule } from './resources/resources.module';
 import { AdminModule } from './admin/admin.module';
@@ -130,6 +131,7 @@ import { WebsocketModule } from './websocket/websocket.module';
     MailModule,
     NotesModule,
     BookmarksModule,
+    FollowsModule,
     ReviewsModule,
     ResourcesModule,
     AdminModule,
