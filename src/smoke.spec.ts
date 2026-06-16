@@ -11,8 +11,10 @@ import { INestApplication, type ExecutionContext } from '@nestjs/common';
 import { getQueueToken } from '@nestjs/bullmq';
 import request from 'supertest';
 
+import { getDataSourceToken } from '@nestjs/typeorm';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
+import { HealthController } from './health/health.controller';
 import { NotesController } from './notes/notes.controller';
 import { NotesService } from './notes/notes.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -28,6 +30,27 @@ const allowGuard = {
 };
 
 describe('Smoke: critical flows', () => {
+  describe('Health', () => {
+    let app: INestApplication;
+
+    beforeAll(async () => {
+      const moduleRef: TestingModule = await Test.createTestingModule({
+        controllers: [HealthController],
+        providers: [{ provide: getDataSourceToken(), useValue: { query: jest.fn().mockResolvedValue([{ '?column?': 1 }]) } }],
+      }).compile();
+      app = moduleRef.createNestApplication();
+      await app.init();
+    });
+
+    afterAll(async () => app.close());
+
+    it('GET /health reports ok when the DB responds', async () => {
+      const res = await request(app.getHttpServer()).get('/health').expect(200);
+      expect(res.body.status).toBe('ok');
+      expect(res.body.database).toBe('up');
+    });
+  });
+
   describe('Auth — login', () => {
     let app: INestApplication;
     const authService = {
