@@ -57,6 +57,10 @@ export class UserRepository implements IUserRepository {
     await this.repo.increment({ id }, 'points', amount);
   }
 
+  async update(where: any, partial: Partial<User>): Promise<any> {
+    return this.repo.update(where, partial);
+  }
+
   async updateLastActive(id: number): Promise<void> {
     await this.repo
       .createQueryBuilder()

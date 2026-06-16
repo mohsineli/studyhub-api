@@ -34,6 +34,18 @@ export class User {
   @Column({ type: 'int', default: 0 })
   points: number;
 
+  @Column({ type: 'int', nullable: true })
+  best_rank: number;
+
+  @Column({ type: 'int', nullable: true })
+  best_rank_month: number;
+
+  @Column({ type: 'int', nullable: true })
+  best_rank_year: number;
+
+  @Column({ type: 'int', nullable: true })
+  best_rank_points: number;
+
   @Column({ type: 'boolean', default: false })
   verified: boolean;
 

@@ -77,6 +77,7 @@ export class UsersService {
         'user.id', 'user.name', 'user.profile_pic', 'user.dept', 'user.code',
         'user.points', 'user.created_at', 'user.role',
         'user.github', 'user.linkedin', 'user.instagram', 'user.facebook',
+        'user.best_rank', 'user.best_rank_month', 'user.best_rank_year', 'user.best_rank_points',
       ])
       .loadRelationCountAndMap('user.noteCount', 'user.notes', 'note', qb =>
         qb.andWhere('note.status = :status', { status: NoteStatus.APPROVED })
@@ -93,6 +94,23 @@ export class UsersService {
       .where('user.points > :points', { points: user.points })
       .getCount();
 
+    const currentRank = rank + 1;
+
+    // Lazy-update best rank if current rank is better (lower number)
+    if (user.best_rank === null || currentRank < user.best_rank) {
+      const now = new Date();
+      await this.usersRepository.update(id, {
+        best_rank: currentRank,
+        best_rank_month: now.getMonth() + 1,
+        best_rank_year: now.getFullYear(),
+        best_rank_points: user.points,
+      });
+      user.best_rank = currentRank;
+      user.best_rank_month = now.getMonth() + 1;
+      user.best_rank_year = now.getFullYear();
+      user.best_rank_points = user.points;
+    }
+
     return {
       id: user.id,
       name: user.name,
@@ -103,7 +121,11 @@ export class UsersService {
       points: user.points,
       created_at: user.created_at,
       noteCount: (user as any).noteCount || 0,
-      rank: rank + 1,
+      rank: currentRank,
+      bestRank: user.best_rank ?? null,
+      bestRankMonth: user.best_rank_month ?? null,
+      bestRankYear: user.best_rank_year ?? null,
+      bestRankPoints: user.best_rank_points ?? null,
       github: user.github || null,
       linkedin: user.linkedin || null,
       instagram: user.instagram || null,

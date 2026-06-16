@@ -72,6 +72,29 @@ export class LeaderboardService {
     let resetSetting = await this.settingRepository.findOne({ where: { key: 'leaderboard_reset_month' } });
 
     if (!resetSetting || resetSetting.value !== currentMonthKey) {
+      // Capture best rank for all users before the reset wipes points
+      const allUsers = await this.usersRepository
+        .createQueryBuilder('user')
+        .select(['user.id', 'user.points', 'user.best_rank', 'user.best_rank_month', 'user.best_rank_year', 'user.best_rank_points'])
+        .where('user.banned = :banned', { banned: false })
+        .orderBy('user.points', 'DESC')
+        .addOrderBy('user.name', 'ASC')
+        .getMany();
+
+      let prevPoints: number | null = null;
+      let rank = 0;
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
+
+      for (const u of allUsers) {
+        if (u.points !== prevPoints) rank++;
+        prevPoints = u.points;
+
+        if (u.best_rank === null || rank < u.best_rank) {
+          await this.usersRepository.update(u.id, { best_rank: rank, best_rank_month: month, best_rank_year: year, best_rank_points: u.points });
+        }
+      }
+
       await this.takeSnapshot();
 
       if (!resetSetting) {

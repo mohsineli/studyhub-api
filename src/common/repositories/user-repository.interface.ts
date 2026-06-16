@@ -12,6 +12,7 @@ export interface IUserRepository {
   findTopByPoints(limit: number): Promise<User[]>;
   increment(where: any, column: string, amount: number): Promise<any>;
   incrementPoints(id: number, amount: number): Promise<void>;
+  update(where: any, partial: Partial<User>): Promise<any>;
   updateLastActive(id: number): Promise<void>;
   createQueryBuilder(alias: string): any;
 }
