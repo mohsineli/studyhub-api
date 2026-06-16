@@ -10,6 +10,8 @@ import { NotificationType } from '../notifications/entities/notification.entity'
 import { NoteDownloadedEvent, NoteStatusChangedEvent } from '../common/events/index';
 import { NoteRepository } from '../common/repositories/note.repository';
 import { NoteReactionRepository } from '../common/repositories/note-reaction.repository';
+import { UserRepository } from '../common/repositories/user.repository';
+import { WebsocketService } from '../websocket/websocket.service';
 
 describe('NotesService', () => {
   let service: NotesService;
@@ -79,6 +81,20 @@ describe('NotesService', () => {
           provide: EventEmitter2,
           useValue: {
             emit: jest.fn(),
+            emitAsync: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: UserRepository,
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: WebsocketService,
+          useValue: {
+            emitToUser: jest.fn(),
           },
         },
       ],
@@ -222,7 +238,7 @@ describe('NotesService', () => {
 
       await service.incrementDownload(1, 2);
 
-      expect(eventEmitter.emit).toHaveBeenCalledWith('note.downloaded', new NoteDownloadedEvent(1, 2, 1));
+      expect(eventEmitter.emitAsync).toHaveBeenCalledWith('note.downloaded', new NoteDownloadedEvent(1, 2, 1));
     });
 
     it('should not award points when downloader is uploader', async () => {
@@ -231,7 +247,7 @@ describe('NotesService', () => {
 
       await service.incrementDownload(1, 1);
 
-      expect(eventEmitter.emit).toHaveBeenCalledWith('note.downloaded', new NoteDownloadedEvent(1, 1, 1));
+      expect(eventEmitter.emitAsync).toHaveBeenCalledWith('note.downloaded', new NoteDownloadedEvent(1, 1, 1));
     });
   });
 
@@ -262,7 +278,7 @@ describe('NotesService', () => {
       const result = await service.updateStatus(1, NoteStatus.APPROVED);
 
       expect(result.status).toBe(NoteStatus.APPROVED);
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
+      expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
         'note.status-changed',
         new NoteStatusChangedEvent(1, mockNote.title, mockNote.uploader_id, NoteStatus.APPROVED),
       );
@@ -274,7 +290,7 @@ describe('NotesService', () => {
 
       await service.updateStatus(1, NoteStatus.REJECTED);
 
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
+      expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
         'note.status-changed',
         new NoteStatusChangedEvent(1, mockNote.title, mockNote.uploader_id, NoteStatus.REJECTED),
       );

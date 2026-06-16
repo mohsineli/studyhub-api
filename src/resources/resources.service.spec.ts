@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ResourcesService } from './resources.service';
 import { ResourceStatus } from './entities/resource.entity';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SettingsService } from '../admin/settings.service';
 import { RedisService } from '../redis/redis.service';
 import { ResourceRepository } from '../common/repositories/resource.repository';
@@ -57,6 +58,12 @@ describe('ResourcesService', () => {
             get: jest.fn(),
             del: jest.fn(),
             delByPattern: jest.fn(),
+          },
+        },
+        {
+          provide: EventEmitter2,
+          useValue: {
+            emit: jest.fn(),
           },
         },
       ],

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getQueueToken } from '@nestjs/bullmq';
 import { NotesController } from './notes.controller';
 import { NotesService } from './notes.service';
 
@@ -22,6 +23,11 @@ describe('NotesController', () => {
             updateStatus: jest.fn(),
             toggleReaction: jest.fn(),
           },
+        },
+        {
+          // NotesController injects @InjectQueue('moderation').
+          provide: getQueueToken('moderation'),
+          useValue: { add: jest.fn() },
         },
       ],
     }).compile();

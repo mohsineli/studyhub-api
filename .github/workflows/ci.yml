@@ -20,3 +20,5 @@ jobs:
       # `nest build` runs the TypeScript compiler, so this fails on any type error.
       - name: Build (type-check)
         run: npm run build
+      - name: Test
+        run: npm test -- --ci
