@@ -5,6 +5,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import { Response } from 'express';
 
 @Catch()
@@ -41,6 +42,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (details) {
       payload.details = details;
+    }
+
+    // Report genuine server errors to Sentry; expected 4xx (validation, auth,
+    // not-found) are left out so they don't drown the signal. No-op without a DSN.
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      Sentry.captureException(exception);
     }
 
     response.status(status).json(payload);

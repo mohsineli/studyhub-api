@@ -1,3 +1,4 @@
+import './instrument'; // Must be first so Sentry can instrument the app.
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
