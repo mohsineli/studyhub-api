@@ -7,6 +7,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { PresenceService } from '../websocket/presence.service';
+import { PresenceSnapshotService } from '../websocket/presence-snapshot.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -17,12 +18,19 @@ export class AdminController {
     private readonly settingsService: SettingsService,
     private readonly analyticsService: AnalyticsService,
     private readonly presenceService: PresenceService,
+    private readonly presenceSnapshotService: PresenceSnapshotService,
   ) {}
 
   // Real-time online users grouped by client: web / android / ios
   @Get('online-users')
   getOnlineUsers() {
     return this.presenceService.getOnlineUsers();
+  }
+
+  // Online-history timeline (snapshots) for charts. ?hours=24 (default)
+  @Get('online-users/history')
+  getOnlineUsersHistory(@Query('hours') hours?: string) {
+    return this.presenceSnapshotService.history(hours ? Number(hours) : 24);
   }
 
   @Get('stats')
