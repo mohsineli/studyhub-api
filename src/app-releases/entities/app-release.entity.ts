@@ -31,6 +31,10 @@ export class AppRelease {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
+  // How many times this build has been downloaded
+  @Column({ type: 'int', default: 0 })
+  downloads: number;
+
   @Column({ type: 'int', nullable: true })
   uploaded_by: number | null;
 
