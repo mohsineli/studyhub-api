@@ -56,6 +56,16 @@ export class UsersService {
     return { users, total };
   }
 
+  // Lightweight bulk lookup for presence/online-user displays.
+  async findSummariesByIds(ids: number[]): Promise<User[]> {
+    if (!ids.length) return [];
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.profile_pic', 'user.dept', 'user.points', 'user.banned'])
+      .where('user.id IN (:...ids)', { ids })
+      .getMany();
+  }
+
   async findOne(id: number): Promise<User> {
     const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) {

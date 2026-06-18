@@ -10,6 +10,7 @@ import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { WebsocketService } from './websocket.service';
+import { PresenceService, normalizePlatform } from './presence.service';
 import { ActivityService } from '../users/activity.service';
 
 const LIVE_ACTIVE_USERS_INTERVAL_MS = 5000;
@@ -34,6 +35,7 @@ export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnG
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly websocketService: WebsocketService,
+    private readonly presenceService: PresenceService,
     private readonly activityService: ActivityService,
   ) {}
 
@@ -63,10 +65,27 @@ export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnG
           total: result.total,
           timestamp: new Date().toISOString(),
         });
+
+        // Real-time presence grouped by client (web / android / ios)
+        await this.pushPresence();
       } catch {
         // silently retry on next interval
       }
     }, LIVE_ACTIVE_USERS_INTERVAL_MS);
+  }
+
+  // Emit the current online-by-platform snapshot to admins/moderators.
+  private async pushPresence() {
+    try {
+      const server = this.websocketService['server'];
+      if (!server) return;
+      const modRoom = server.sockets.adapter.rooms?.get('moderators');
+      if (!modRoom || modRoom.size === 0) return;
+      const payload = await this.presenceService.getOnlineUsers();
+      this.websocketService.emitToModerators('online-presence:updated', payload);
+    } catch {
+      // ignore
+    }
   }
 
   async handleConnection(client: Socket) {
@@ -87,15 +106,25 @@ export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnG
       client.data.userId = userId;
       client.data.role = role;
 
+      const platform = normalizePlatform(
+        client.handshake.auth?.platform || client.handshake.query?.platform,
+      );
+      client.data.platform = platform;
+      this.presenceService.add(client.id, userId, platform);
+
       client.join(`user:${userId}`);
       if (role === 'admin' || role === 'moderator') {
         client.join('moderators');
       }
+
+      void this.pushPresence();
     } catch {
       client.disconnect();
     }
   }
 
   handleDisconnect(client: Socket) {
+    this.presenceService.remove(client.id);
+    void this.pushPresence();
   }
 }
