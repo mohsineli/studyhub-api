@@ -21,6 +21,10 @@ export class StorageService {
         endpoint,
         credentials: { accessKeyId, secretAccessKey },
         requestHandler: { requestTimeout: 30000 },
+        // Newer AWS SDK injects a CRC32 checksum into presigned PUT URLs,
+        // which breaks direct browser uploads to Cloudflare R2. Only add
+        // checksums when the operation actually requires them.
+        requestChecksumCalculation: 'WHEN_REQUIRED',
       });
       this.bucket = config.get<string>('R2_BUCKET') || '';
       this.publicUrlBase = config.get<string>('R2_PUBLIC_URL') || '';
@@ -88,7 +92,7 @@ export class StorageService {
       CORSConfiguration: {
         CORSRules: [
           {
-            AllowedOrigins: ['http://localhost:3000', 'http://localhost:3002', this.config.get<string>('FRONTEND_URL')].filter(Boolean) as string[],
+            AllowedOrigins: ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:8000', this.config.get<string>('FRONTEND_URL')].filter(Boolean) as string[],
             AllowedMethods: ['GET', 'PUT', 'POST', 'DELETE'],
             AllowedHeaders: ['*'],
             ExposeHeaders: ['ETag'],

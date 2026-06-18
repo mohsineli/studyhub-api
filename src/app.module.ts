@@ -16,6 +16,7 @@ import { BookmarksModule } from './bookmarks/bookmarks.module';
 import { FollowsModule } from './follows/follows.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ResourcesModule } from './resources/resources.module';
+import { AppReleasesModule } from './app-releases/app-releases.module';
 import { AdminModule } from './admin/admin.module';
 import { RedisModule } from './redis/redis.module';
 import { ThrottleConfigModule } from './redis/throttle-config.module';
@@ -137,6 +138,7 @@ import { WebsocketModule } from './websocket/websocket.module';
     FollowsModule,
     ReviewsModule,
     ResourcesModule,
+    AppReleasesModule,
     AdminModule,
     StorageModule,
     WebsocketModule,
