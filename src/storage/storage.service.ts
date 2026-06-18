@@ -87,12 +87,28 @@ export class StorageService {
   async setupCors(): Promise<void> {
     this.checkConfigured();
 
+    // FRONTEND_URL may be a single origin or a comma-separated list.
+    const envOrigins = (this.config.get<string>('FRONTEND_URL') || '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
+
+    const allowedOrigins = Array.from(
+      new Set([
+        'http://localhost:3000',
+        'http://localhost:3002',
+        'http://localhost:8000',
+        'https://studyhubbd.vercel.app',
+        ...envOrigins,
+      ]),
+    );
+
     const command = new PutBucketCorsCommand({
       Bucket: this.bucket,
       CORSConfiguration: {
         CORSRules: [
           {
-            AllowedOrigins: ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:8000', this.config.get<string>('FRONTEND_URL')].filter(Boolean) as string[],
+            AllowedOrigins: allowedOrigins,
             AllowedMethods: ['GET', 'PUT', 'POST', 'DELETE'],
             AllowedHeaders: ['*'],
             ExposeHeaders: ['ETag'],
