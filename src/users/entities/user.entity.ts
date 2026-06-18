@@ -87,6 +87,10 @@ export class User {
   @Column({ nullable: true })
   last_active_at: Date;
 
+  // Client used on the user's most recent request: 'web' | 'android' | 'ios'
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  last_active_platform: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

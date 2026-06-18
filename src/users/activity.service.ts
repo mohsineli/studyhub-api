@@ -17,11 +17,16 @@ export class ActivityService {
     private readonly redisService: RedisService,
   ) {}
 
-  async updateLastActive(id: number): Promise<void> {
+  async updateLastActive(id: number, platform?: string): Promise<void> {
+    const set: Record<string, unknown> = { last_active_at: () => 'NOW()' };
+    if (platform && ['web', 'android', 'ios'].includes(platform)) {
+      set.last_active_platform = platform;
+    }
+
     await this.usersRepository
       .createQueryBuilder('user')
       .update(User)
-      .set({ last_active_at: () => 'NOW()' })
+      .set(set)
       .where('id = :id', { id })
       .execute();
 
@@ -49,7 +54,7 @@ export class ActivityService {
       .where("TO_CHAR(session.created_at, 'YYYY-MM-DD') = :dateStr", { dateStr });
 
     const query = this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
+      .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.last_active_platform', 'user.profile_pic', 'user.dept'])
       .where(`user.id IN (${sessionSubquery.getQuery()})`)
       .setParameters(sessionSubquery.getParameters())
       .orderBy('user.last_active_at', 'DESC')
@@ -70,7 +75,7 @@ export class ActivityService {
 
     return this.redisService.wrap(cacheKey, CACHE_TTL.ACTIVITY, async () => {
       const query = this.usersRepository.createQueryBuilder('user')
-        .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.profile_pic', 'user.dept'])
+        .select(['user.id', 'user.name', 'user.email', 'user.role', 'user.banned', 'user.points', 'user.last_active_at', 'user.last_active_platform', 'user.profile_pic', 'user.dept'])
         .where('user.last_active_at >= NOW() - make_interval(mins => :minutes)', { minutes })
         .orderBy('user.last_active_at', 'DESC')
         .take(take)

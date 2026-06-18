@@ -16,17 +16,21 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_ACCESS_SECRET') as string,
+      passReqToCallback: true,
     });
   }
 
-  async validate(payload: any) {
+  async validate(req: any, payload: any) {
     const user = await this.usersService.findOne(payload.sub);
     if (!user) {
       throw new UnauthorizedException();
     }
 
-    // Fire and forget updating last active timestamp
-    this.activityService.updateLastActive(user.id).catch(err => console.error('Failed to update last_active_at', err));
+    // Which client made this request (web / android / ios) — set by the frontends
+    const platform = req?.headers?.['x-client-platform'] as string | undefined;
+
+    // Fire and forget updating last active timestamp (+ platform)
+    this.activityService.updateLastActive(user.id, platform).catch(err => console.error('Failed to update last_active_at', err));
     return { 
       id: user.id, 
       email: user.email, 
